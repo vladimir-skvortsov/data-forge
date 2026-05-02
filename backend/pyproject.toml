@@ -30,7 +30,7 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["app"]
 
 [tool.mypy]
 python_version = "3.12"
