@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import traceback
 import uuid
@@ -49,6 +48,7 @@ async def _execute(job_id: str) -> None:
 
 async def _process_job(job: Job, job_id: str, db: object) -> None:
     from app.config import settings
+    from app.core.result_formatter import write_results
     from app.pipeline import run_pipeline as _run_pipeline
     from app.pipeline.postprocess_blocks import deduplicate, remove_outliers
 
@@ -60,6 +60,7 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     pipeline_config = list(job.pipeline_config)
     schema_config = dict(job.schema_config)
     block_types = {str(b.get('type', '')) for b in pipeline_config}
+    output_format = str(schema_config.get('output_format', 'json'))
 
     results: list[dict] = []
     for file in job.files:
@@ -79,11 +80,8 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     if 'remove_outliers' in block_types:
         results = remove_outliers(results)
 
-    result_path = Path(settings.storage_path) / job_id / 'result.json'
-    result_path.parent.mkdir(parents=True, exist_ok=True)
-    result_path.write_text(
-        json.dumps(results, ensure_ascii=False, indent=2), encoding='utf-8'
-    )
+    job_dir = Path(settings.storage_path) / job_id
+    result_path = write_results(results, job_dir, output_format)
 
     db.add(
         JobResult(  # type: ignore[union-attr]

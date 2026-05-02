@@ -1,4 +1,3 @@
-import json
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -11,11 +10,13 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.core.cost_estimator import estimate_cost
+from app.core.result_formatter import read_results
 from app.db.enums import FileStatus, FileType, JobStatus
 from app.db.models.job import Job
 from app.db.models.job_file import JobFile
 from app.services import billing_service
 from app.services.billing_service import InsufficientBalanceError
+from app.tasks.pipeline_runner import run_pipeline
 
 _EXTENSION_TO_FILE_TYPE: dict[str, FileType] = {
     '.txt': FileType.TEXT,
@@ -193,9 +194,6 @@ async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Dec
     job.credits_estimate = estimate
     await db.flush()
 
-    # Import deferred to avoid circular imports at module level
-    from app.tasks.pipeline_runner import run_pipeline  # noqa: PLC0415
-
     run_pipeline.apply_async(args=[job_id], queue='slow_queue')
 
     return job, estimate
@@ -216,4 +214,5 @@ async def get_job_result(
     result_path = Path(job.result.result_file_path)
     if not result_path.exists():
         raise JobStateError('Result file not found on disk')
-    return list(json.loads(result_path.read_text(encoding='utf-8')))
+
+    return read_results(result_path)
