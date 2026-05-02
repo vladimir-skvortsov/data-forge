@@ -11,23 +11,23 @@ src = ["backend", "frontend"]
 
 [tool.ruff.lint]
 select = ["ALL"]
+ignore = [
+    "COM812",
+    "ISC001",
+    "D",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**/*.py" = [
     "S101",
     "ANN",
-    "D",
     "SLF001",
     "PLR2004",
 ]
 "**/alembic/**/*.py" = [
     "ANN",
-    "D",
     "INP001",
 ]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
