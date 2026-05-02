@@ -18,6 +18,16 @@ dependencies = [
     "httpx>=0.28",
     "prometheus-client>=0.21",
     "structlog>=25.1",
+    "pillow>=11.0",
+    "pydub>=0.25",
+    "noisereduce>=3.0",
+    "numpy>=2.0",
+    "pypdf>=5.0",
+    "python-docx>=1.1",
+    "openai>=1.58",
+    "spacy>=3.8",
+    "nltk>=3.9",
+    "scikit-learn>=1.6",
 ]
 
 [dependency-groups]
