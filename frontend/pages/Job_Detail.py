@@ -1,0 +1,163 @@
+import time
+
+import pandas as pd
+import streamlit as st
+
+import api_client
+
+_STATUS_ICON: dict[str, str] = {
+    'draft': '⬜',
+    'pending': '🟡',
+    'processing': '🔵',
+    'completed': '✅',
+    'failed': '❌',
+}
+_FILE_STATUS_ICON = {'queued': '⬜', 'processing': '🔵', 'done': '✅', 'failed': '❌'}
+
+job_id = st.session_state.get('selected_job_id')
+if not job_id:
+    st.error('No job selected. Please open a job from the Dashboard.')
+    st.stop()
+
+job_resp = api_client.get_job(job_id)
+if job_resp.status_code == 404:
+    st.error('Job not found.')
+    st.stop()
+if job_resp.status_code == 403:
+    st.error('Access denied.')
+    st.stop()
+if job_resp.status_code != 200:
+    st.error('Failed to load job.')
+    st.stop()
+
+job = job_resp.json()
+status = job['status']
+icon = _STATUS_ICON.get(status, '⬜')
+
+st.header(job['title'])
+col_s, col_e, col_c = st.columns(3)
+with col_s:
+    st.metric('Status', f'{icon} {status.upper()}')
+with col_e:
+    st.metric('Credits Estimate', job.get('credits_estimate') or '—')
+with col_c:
+    st.metric('Credits Charged', job.get('credits_charged') or '—')
+
+if status == 'failed' and job.get('error_message'):
+    with st.expander('Error Details', expanded=True):
+        st.code(job['error_message'], language='text')
+
+if status == 'draft':
+    st.subheader('Upload Files')
+    uploaded = st.file_uploader(
+        'Choose files',
+        accept_multiple_files=True,
+        type=[
+            'txt',
+            'pdf',
+            'docx',
+            'csv',
+            'md',
+            'png',
+            'jpg',
+            'jpeg',
+            'webp',
+            'mp3',
+            'wav',
+            'm4a',
+            'ogg',
+        ],
+    )
+
+    if uploaded:
+        if st.button('Upload', type='primary'):
+            progress = st.progress(0, text='Uploading…')
+            errors: list[str] = []
+            for i, f in enumerate(uploaded):
+                resp = api_client.upload_file(job_id, f.read(), f.name)
+                if resp.status_code not in (200, 201):
+                    detail = resp.json().get('detail', 'error')
+                    errors.append(f'`{f.name}`: {detail}')
+                progress.progress((i + 1) / len(uploaded), text=f'Uploading {f.name}…')
+            if errors:
+                for err in errors:
+                    st.error(err)
+            else:
+                st.success(f'Uploaded {len(uploaded)} file(s).')
+            st.rerun()
+
+files = job.get('files', [])
+if files:
+    st.subheader('Files')
+    for f in files:
+        f_icon = _FILE_STATUS_ICON.get(f['status'], '⬜')
+        size_kb = f['file_size_bytes'] // 1024
+        st.write(
+            f'{f_icon} `{f["original_name"]}` — {size_kb} KB'
+            f' ({f["file_type"]}, {f["status"]})'
+        )
+
+pipeline = job.get('pipeline_config', [])
+if pipeline:
+    with st.expander('Pipeline', expanded=False):
+        for i, blk in enumerate(pipeline):
+            st.write(f'`{i + 1}. {blk["type"]}`')
+else:
+    st.caption('Identity pipeline (no processing blocks).')
+
+if status == 'draft':
+    st.subheader('Run Job')
+    if files:
+        if st.button('▶ Run Job', type='primary', use_container_width=True):
+            run_resp = api_client.run_job(job_id)
+            if run_resp.status_code == 200:
+                data = run_resp.json()
+                st.success(f'Job started! {data["credits_held"]} credits held.')
+                st.rerun()
+            elif run_resp.status_code == 402:
+                st.error('Insufficient balance. Please top up your account.')
+            elif run_resp.status_code == 409:
+                st.error(run_resp.json().get('detail', 'Conflict'))
+            else:
+                st.error('Failed to start job.')
+    else:
+        st.info('Upload at least one file before running.')
+
+if status == 'completed':
+    st.subheader('Results')
+    result_resp = api_client.get_result(job_id)
+
+    if result_resp.status_code == 200:
+        records = result_resp.json()
+        structured = [r for r in records if r.get('structured')]
+
+        st.success(f'{len(records)} record(s) processed, {len(structured)} structured.')
+
+        if structured:
+            tab_table, tab_json = st.tabs(['Table', 'JSON'])
+            with tab_table:
+                try:
+                    df = pd.DataFrame([r['structured'] for r in structured])
+                    st.dataframe(df, use_container_width=True)
+                except Exception:  # noqa: BLE001
+                    st.warning('Could not render as table — showing raw JSON.')
+                    st.json([r['structured'] for r in structured])
+            with tab_json:
+                st.json(records)
+        else:
+            st.write(
+                'No structured data — files were processed without the Structure block.'
+            )
+            for r in records:
+                st.write(
+                    f'• `{r.get("file", "file")}` → `{r.get("processed_path", "—")}`'
+                )
+    elif result_resp.status_code == 409:
+        st.warning(result_resp.json().get('detail', 'Result not available yet.'))
+    else:
+        st.error('Could not fetch results.')
+
+if status in ('pending', 'processing'):
+    with st.spinner(f'Job is {status}… refreshing in 5 s'):
+        time.sleep(5)
+    st.rerun()
