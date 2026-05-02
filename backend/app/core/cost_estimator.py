@@ -68,3 +68,50 @@ def estimate_cost(files: list[JobFile], pipeline_config: list[dict]) -> Decimal:
     )
 
     return file_total + per_job_extra
+
+
+def estimate_breakdown(
+    files: list[JobFile], pipeline_config: list[dict]
+) -> list[dict[str, object]]:
+    if not files:
+        return []
+
+    block_types = [str(b.get('type', '')) for b in pipeline_config]
+    items: list[dict[str, object]] = []
+
+    # Base cost per file type group
+    by_type: dict[str, list[JobFile]] = {}
+    for f in files:
+        by_type.setdefault(f.file_type.value, []).append(f)
+
+    for ftype, group in by_type.items():
+        base = sum((estimate_file_base_cost(f) for f in group), Decimal('0'))
+        items.append({'item': f'{len(group)}× {ftype.upper()}', 'credits': float(base)})
+
+    # Per-file pipeline block costs
+    seen_per_file: list[str] = []
+    for bt in block_types:
+        if (
+            bt in BLOCK_PER_FILE_COSTS
+            and BLOCK_PER_FILE_COSTS[bt] > 0
+            and bt not in seen_per_file
+        ):
+            seen_per_file.append(bt)
+            cost = BLOCK_PER_FILE_COSTS[bt] * len(files)
+            items.append(
+                {'item': f'Блок {bt} × {len(files)} файлов', 'credits': float(cost)}
+            )
+
+    # Per-job pipeline block costs
+    seen_per_job: list[str] = []
+    for bt in block_types:
+        if bt in BLOCK_PER_JOB_COSTS and bt not in seen_per_job:
+            seen_per_job.append(bt)
+            items.append(
+                {
+                    'item': f'Блок {bt} (за задачу)',
+                    'credits': float(BLOCK_PER_JOB_COSTS[bt]),
+                }
+            )
+
+    return items
