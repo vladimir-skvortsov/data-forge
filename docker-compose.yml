@@ -1,0 +1,121 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dataforge
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ dataforge ]
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ dataforge ]
+
+  migrate:
+    build: ./backend
+    command: [ "uv", "run", "alembic", "upgrade", "head" ]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [ dataforge ]
+    restart: "no"
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      STORAGE_PATH: /app/storage
+    volumes:
+      - storage:/app/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks: [ dataforge ]
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  celery-worker:
+    build: ./backend
+    command:
+      - uv
+      - run
+      - celery
+      - -A
+      - app.core.celery_app
+      - worker
+      - --loglevel=info
+      - -Q
+      - fast_queue,slow_queue,postprocess_queue
+      - --concurrency=2
+    env_file: .env
+    environment:
+      STORAGE_PATH: /app/storage
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks: [ dataforge ]
+
+  frontend:
+    build: ./frontend
+    env_file: .env
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [ dataforge ]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [ dataforge ]
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage:
+  prometheus_data:
+
+networks:
+  dataforge:
+    driver: bridge
