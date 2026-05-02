@@ -264,3 +264,39 @@ async def test_run_job_no_files_conflict(client: AsyncClient) -> None:
 async def test_jobs_unauthenticated(client: AsyncClient) -> None:
     resp = await client.get('/api/v1/jobs')
     assert resp.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_get_job_result_ok(client: AsyncClient) -> None:
+    user = _make_user()
+    result_data = [{'file': 'doc.txt', 'structured': {'name': 'Alice'}}]
+
+    with (
+        patch('app.api.deps.auth_service.get_by_id', new=AsyncMock(return_value=user)),
+        patch(
+            'app.api.v1.jobs.job_service.get_job_result',
+            new=AsyncMock(return_value=result_data),
+        ),
+    ):
+        resp = await client.get(
+            f'/api/v1/jobs/{uuid.uuid4()}/result', headers=_auth_headers(user)
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == result_data
+
+
+@pytest.mark.anyio
+async def test_get_job_result_not_completed(client: AsyncClient) -> None:
+    user = _make_user()
+    with (
+        patch('app.api.deps.auth_service.get_by_id', new=AsyncMock(return_value=user)),
+        patch(
+            'app.api.v1.jobs.job_service.get_job_result',
+            new=AsyncMock(side_effect=JobStateError('Job is not completed')),
+        ),
+    ):
+        resp = await client.get(
+            f'/api/v1/jobs/{uuid.uuid4()}/result', headers=_auth_headers(user)
+        )
+    assert resp.status_code == 409

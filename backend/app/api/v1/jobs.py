@@ -135,3 +135,19 @@ async def run_job(
             detail='Insufficient balance',
         )
     return RunJobResponse(job_id=job.id, status=job.status, credits_held=credits_held)
+
+
+@router.get('/{job_id}/result')
+async def get_job_result(
+    job_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> list[dict]:
+    try:
+        return await job_service.get_job_result(job_id, str(current_user.id), db)
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    except JobStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))

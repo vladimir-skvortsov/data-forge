@@ -1,3 +1,4 @@
+import json
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -63,6 +64,18 @@ def _detect_file_type(filename: str) -> FileType:
 async def _load_job(job_id: str, db: AsyncSession) -> Job:
     result = await db.execute(
         select(Job).options(selectinload(Job.files)).where(Job.id == uuid.UUID(job_id))
+    )
+    job = result.scalar_one_or_none()
+    if job is None:
+        raise JobNotFoundError(job_id)
+    return job
+
+
+async def _load_job_with_result(job_id: str, db: AsyncSession) -> Job:
+    result = await db.execute(
+        select(Job)
+        .options(selectinload(Job.files), selectinload(Job.result))
+        .where(Job.id == uuid.UUID(job_id))
     )
     job = result.scalar_one_or_none()
     if job is None:
@@ -186,3 +199,21 @@ async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Dec
     run_pipeline.apply_async(args=[job_id], queue='slow_queue')
 
     return job, estimate
+
+
+async def get_job_result(
+    job_id: str,
+    user_id: str,
+    db: AsyncSession,
+) -> list[dict[str, Any]]:
+    job = await _load_job_with_result(job_id, db)
+    if str(job.user_id) != user_id:
+        raise JobAccessDeniedError(job_id)
+    if job.status != JobStatus.COMPLETED:
+        raise JobStateError(f'Job is not completed (status: {job.status})')
+    if not job.result:
+        raise JobStateError('No result available')
+    result_path = Path(job.result.result_file_path)
+    if not result_path.exists():
+        raise JobStateError('Result file not found on disk')
+    return list(json.loads(result_path.read_text(encoding='utf-8')))
