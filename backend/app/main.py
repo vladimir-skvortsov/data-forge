@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.billing import router as billing_router
 from app.config import settings
 
 
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth_router, prefix='/api/v1')
+    app.include_router(billing_router, prefix='/api/v1')
 
     return app
 
