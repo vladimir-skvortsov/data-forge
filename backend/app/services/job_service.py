@@ -1,0 +1,188 @@
+import uuid
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+from fastapi import UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.config import settings
+from app.core.cost_estimator import estimate_cost
+from app.db.enums import FileStatus, FileType, JobStatus
+from app.db.models.job import Job
+from app.db.models.job_file import JobFile
+from app.services import billing_service
+from app.services.billing_service import InsufficientBalanceError
+
+_EXTENSION_TO_FILE_TYPE: dict[str, FileType] = {
+    '.txt': FileType.TEXT,
+    '.pdf': FileType.TEXT,
+    '.docx': FileType.TEXT,
+    '.md': FileType.TEXT,
+    '.csv': FileType.TEXT,
+    '.png': FileType.IMAGE,
+    '.jpg': FileType.IMAGE,
+    '.jpeg': FileType.IMAGE,
+    '.webp': FileType.IMAGE,
+    '.gif': FileType.IMAGE,
+    '.mp3': FileType.AUDIO,
+    '.wav': FileType.AUDIO,
+    '.m4a': FileType.AUDIO,
+    '.ogg': FileType.AUDIO,
+    '.flac': FileType.AUDIO,
+}
+
+
+class JobNotFoundError(Exception):
+    pass
+
+
+class JobAccessDeniedError(Exception):
+    pass
+
+
+class JobStateError(Exception):
+    pass
+
+
+class FileLimitExceededError(Exception):
+    pass
+
+
+class FileSizeLimitError(Exception):
+    pass
+
+
+def _detect_file_type(filename: str) -> FileType:
+    ext = Path(filename).suffix.lower()
+    return _EXTENSION_TO_FILE_TYPE.get(ext, FileType.TEXT)
+
+
+async def _load_job(job_id: str, db: AsyncSession) -> Job:
+    result = await db.execute(
+        select(Job).options(selectinload(Job.files)).where(Job.id == uuid.UUID(job_id))
+    )
+    job = result.scalar_one_or_none()
+    if job is None:
+        raise JobNotFoundError(job_id)
+    return job
+
+
+async def create_job(
+    user_id: str,
+    title: str,
+    schema_config: dict[str, Any],
+    pipeline_config: list[dict[str, Any]],
+    db: AsyncSession,
+) -> Job:
+    job = Job(
+        user_id=uuid.UUID(user_id),
+        title=title,
+        status=JobStatus.DRAFT,
+        schema_config=schema_config,
+        pipeline_config=pipeline_config,
+    )
+    db.add(job)
+    await db.flush()
+    return job
+
+
+async def get_job(job_id: str, user_id: str, db: AsyncSession) -> Job:
+    job = await _load_job(job_id, db)
+    if str(job.user_id) != user_id:
+        raise JobAccessDeniedError(job_id)
+    return job
+
+
+async def list_jobs(user_id: str, db: AsyncSession) -> list[Job]:
+    result = await db.execute(
+        select(Job)
+        .options(selectinload(Job.files))
+        .where(Job.user_id == uuid.UUID(user_id))
+        .order_by(Job.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def delete_job(job_id: str, user_id: str, db: AsyncSession) -> None:
+    job = await get_job(job_id, user_id, db)
+    if job.status not in (JobStatus.DRAFT, JobStatus.FAILED):
+        raise JobStateError(f'Cannot delete job in status {job.status}')
+    await db.delete(job)
+
+
+async def add_file(
+    job_id: str,
+    user_id: str,
+    upload: UploadFile,
+    db: AsyncSession,
+) -> JobFile:
+    job = await get_job(job_id, user_id, db)
+    if job.status != JobStatus.DRAFT:
+        raise JobStateError('Files can only be added to draft jobs')
+    if len(job.files) >= settings.max_files_per_job:
+        raise FileLimitExceededError(f'Max {settings.max_files_per_job} files per job')
+
+    content = await upload.read()
+    file_size = len(content)
+
+    max_bytes = settings.max_file_size_mb * 1024 * 1024
+    if file_size > max_bytes:
+        raise FileSizeLimitError(f'File exceeds {settings.max_file_size_mb} MB limit')
+
+    filename = upload.filename or 'file'
+    file_type = _detect_file_type(filename)
+
+    storage_dir = Path(settings.storage_path) / str(job.id)
+    storage_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = Path(filename).name
+    file_path = storage_dir / safe_name
+    counter = 1
+    while file_path.exists():
+        stem = Path(safe_name).stem
+        suffix = Path(safe_name).suffix
+        file_path = storage_dir / f'{stem}_{counter}{suffix}'
+        counter += 1
+
+    file_path.write_bytes(content)
+
+    job_file = JobFile(
+        job_id=job.id,
+        original_name=filename,
+        file_type=file_type,
+        file_path=str(file_path),
+        file_size_bytes=file_size,
+        status=FileStatus.QUEUED,
+    )
+    db.add(job_file)
+    await db.flush()
+    return job_file
+
+
+async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Decimal]:
+    job = await get_job(job_id, user_id, db)
+    if job.status != JobStatus.DRAFT:
+        raise JobStateError(f'Job is not in DRAFT status (current: {job.status})')
+    if not job.files:
+        raise JobStateError('Cannot run a job with no files')
+
+    estimate = estimate_cost(list(job.files), list(job.pipeline_config))
+
+    try:
+        await billing_service.hold(user_id, job_id, estimate, db)
+    except InsufficientBalanceError:
+        raise
+
+    job.status = JobStatus.PENDING
+    job.credits_estimate = estimate
+    await db.flush()
+
+    # Import deferred to avoid circular imports at module level
+    from app.tasks.pipeline_runner import run_pipeline  # noqa: PLC0415
+
+    run_pipeline.apply_async(args=[job_id], queue='slow_queue')
+
+    return job, estimate
