@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.billing import router as billing_router
@@ -10,10 +11,12 @@ from app.api.v1.jobs import router as jobs_router
 from app.config import settings
 
 _API_V1_PREFIX = '/api/v1'
+_instrumentator = Instrumentator(should_group_status_codes=True)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    _instrumentator.expose(_app, endpoint='/metrics', tags=['monitoring'])
     yield
 
 
@@ -35,6 +38,8 @@ def create_app() -> FastAPI:
         allow_methods=['*'],
         allow_headers=['*'],
     )
+
+    _instrumentator.instrument(app)
 
     app.include_router(auth_router, prefix=_API_V1_PREFIX)
     app.include_router(billing_router, prefix=_API_V1_PREFIX)
