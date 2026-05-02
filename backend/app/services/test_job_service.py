@@ -56,9 +56,6 @@ def _db_returning_all(objs: list) -> AsyncMock:
     return db
 
 
-# ── create_job ──────────────────────────────────────────────────────────────
-
-
 @pytest.mark.anyio
 async def test_create_job_creates_draft() -> None:
     db = AsyncMock()
@@ -71,9 +68,6 @@ async def test_create_job_creates_draft() -> None:
     added = db.add.call_args[0][0]
     assert added.status == JobStatus.DRAFT
     assert added.title == 'My Job'
-
-
-# ── get_job ──────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
@@ -100,9 +94,6 @@ async def test_get_job_owner_ok() -> None:
     assert result is job
 
 
-# ── list_jobs ─────────────────────────────────────────────────────────────────
-
-
 @pytest.mark.anyio
 async def test_list_jobs_returns_all() -> None:
     uid = str(uuid.uuid4())
@@ -110,9 +101,6 @@ async def test_list_jobs_returns_all() -> None:
     db = _db_returning_all(jobs)
     result = await list_jobs(uid, db)
     assert len(result) == 2
-
-
-# ── delete_job ────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
@@ -140,9 +128,6 @@ async def test_delete_running_job_raises() -> None:
     db = _db_returning(job)
     with pytest.raises(JobStateError):
         await delete_job(str(job.id), uid, db)
-
-
-# ── add_file ─────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
@@ -198,9 +183,6 @@ async def test_add_file_saves_to_disk(tmp_path: Path) -> None:
     expected = tmp_path / str(job.id) / 'test.txt'
     assert expected.exists()
     assert expected.read_bytes() == b'hello world'
-
-
-# ── run_job ──────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.anyio
