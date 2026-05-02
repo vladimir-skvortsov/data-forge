@@ -36,6 +36,11 @@ class PromoAlreadyActivatedError(Exception):
     pass
 
 
+async def get_balance(user_id: str, db: AsyncSession) -> Decimal:
+    result = await db.execute(select(Wallet.balance).where(Wallet.user_id == user_id))
+    return result.scalar_one_or_none() or Decimal('0')
+
+
 async def get_wallet(user_id: str, db: AsyncSession) -> Wallet:
     result = await db.execute(
         select(Wallet).where(Wallet.user_id == user_id).with_for_update()
