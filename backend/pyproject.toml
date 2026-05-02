@@ -32,6 +32,11 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "."
+ignore_missing_imports = true
+
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"
