@@ -13,7 +13,7 @@ def _login_page() -> None:
     st.markdown(
         """
         <div style='text-align:center; padding: 3rem 0 1.5rem 0'>
-            <h1 style='font-size:2.5rem; margin-bottom:0'>⚙️ DataForge</h1>
+            <h1 style='font-size:2.5rem; margin-bottom:0'>DataForge</h1>
             <p style='color: #888; margin-top:0.25rem'>Automatic document structuring service</p>
         </div>
         """,
