@@ -114,3 +114,15 @@ def run_job(job_id: str) -> httpx.Response:
 
 def get_result(job_id: str) -> httpx.Response:
     return _get(f'/api/v1/jobs/{job_id}/result')
+
+
+def get_estimate(job_id: str) -> httpx.Response:
+    return _get(f'/api/v1/jobs/{job_id}/estimate')
+
+
+def download_result(job_id: str) -> httpx.Response:
+    return _get(f'/api/v1/jobs/{job_id}/download')
+
+
+def get_stats() -> httpx.Response:
+    return _get('/api/v1/dashboard/stats')

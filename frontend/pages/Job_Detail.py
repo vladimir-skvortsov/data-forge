@@ -108,11 +108,25 @@ else:
 if status == 'draft':
     st.subheader('Run Job')
     if files:
+        # Show cost estimate breakdown before run
+        est_resp = api_client.get_estimate(job_id)
+        if est_resp.status_code == 200:
+            est = est_resp.json()
+            with st.expander(
+                f'💰 Estimate: **{est["total_credits"]} credits**'
+                f' (balance: {est["current_balance"]})',
+                expanded=True,
+            ):
+                for item in est.get('breakdown', []):
+                    st.write(f'• {item["item"]} — {item["credits"]:.2f} credits')
+            if not est['can_proceed']:
+                st.error('Insufficient balance. Please top up your account.')
+
         if st.button('▶ Run Job', type='primary', use_container_width=True):
             run_resp = api_client.run_job(job_id)
             if run_resp.status_code == 200:
-                data = run_resp.json()
-                st.success(f'Job started! {data["credits_held"]} credits held.')
+                run_data = run_resp.json()
+                st.success(f'Job started! {run_data["credits_held"]} credits held.')
                 st.rerun()
             elif run_resp.status_code == 402:
                 st.error('Insufficient balance. Please top up your account.')
@@ -131,7 +145,20 @@ if status == 'completed':
         records = result_resp.json()
         structured = [r for r in records if r.get('structured')]
 
-        st.success(f'{len(records)} record(s) processed, {len(structured)} structured.')
+        col_r, col_d = st.columns([3, 1])
+        col_r.success(
+            f'{len(records)} record(s) processed, {len(structured)} structured.'
+        )
+        with col_d:
+            dl_resp = api_client.download_result(job_id)
+            if dl_resp.status_code == 200:
+                ext = job.get('schema_config', {}).get('output_format', 'json')
+                st.download_button(
+                    '⬇ Download',
+                    data=dl_resp.content,
+                    file_name=f'result_{job_id[:8]}.{ext}',
+                    use_container_width=True,
+                )
 
         if structured:
             tab_table, tab_json = st.tabs(['Table', 'JSON'])

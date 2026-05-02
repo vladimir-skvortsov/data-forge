@@ -71,6 +71,7 @@ if auth.is_authenticated():
             st.Page('pages/Dashboard.py', title='Dashboard', icon='🏠', default=True),
             st.Page('pages/New_Job.py', title='New Job', icon='➕'),
             st.Page('pages/Job_Detail.py', title='Job Detail', icon='📄'),
+            st.Page('pages/Analytics.py', title='Analytics', icon='📊'),
         ]
     )
 else:
