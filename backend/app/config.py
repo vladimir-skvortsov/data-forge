@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # OpenRouter
     openrouter_api_key: str = ''
     openrouter_base_url: str = 'https://openrouter.ai/api/v1'
+    openrouter_llm_model: str = 'moonshotai/kimi-k2.5:nitro'
+    openrouter_vision_model: str = 'moonshotai/kimi-k2.5:nitro'
+    openrouter_stt_model: str = 'openai/whisper-1'
 
     # File storage
     storage_path: str = '/app/storage'
