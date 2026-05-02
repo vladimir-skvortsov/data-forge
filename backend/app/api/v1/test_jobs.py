@@ -300,3 +300,44 @@ async def test_get_job_result_not_completed(client: AsyncClient) -> None:
             f'/api/v1/jobs/{uuid.uuid4()}/result', headers=_auth_headers(user)
         )
     assert resp.status_code == 409
+
+
+@pytest.mark.anyio
+async def test_estimate_job_ok(client: AsyncClient) -> None:
+    user = _make_user()
+    estimate_data = {
+        'breakdown': [{'item': '1× TEXT', 'credits': 1.0}],
+        'total_credits': Decimal('1.0'),
+        'current_balance': Decimal('10.0'),
+        'can_proceed': True,
+    }
+    with (
+        patch('app.api.deps.auth_service.get_by_id', new=AsyncMock(return_value=user)),
+        patch(
+            'app.api.v1.jobs.job_service.get_estimate',
+            new=AsyncMock(return_value=estimate_data),
+        ),
+    ):
+        resp = await client.get(
+            f'/api/v1/jobs/{uuid.uuid4()}/estimate', headers=_auth_headers(user)
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body['can_proceed'] is True
+    assert len(body['breakdown']) == 1
+
+
+@pytest.mark.anyio
+async def test_download_result_not_completed(client: AsyncClient) -> None:
+    user = _make_user()
+    with (
+        patch('app.api.deps.auth_service.get_by_id', new=AsyncMock(return_value=user)),
+        patch(
+            'app.api.v1.jobs.job_service.get_result_file_path',
+            new=AsyncMock(side_effect=JobStateError('not completed')),
+        ),
+    ):
+        resp = await client.get(
+            f'/api/v1/jobs/{uuid.uuid4()}/download', headers=_auth_headers(user)
+        )
+    assert resp.status_code == 409

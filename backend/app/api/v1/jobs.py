@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentUser
 from app.db.session import DBSession
+from app.schemas.dashboard import EstimateResponse
 from app.schemas.jobs import (
     JobCreateRequest,
     JobListResponse,
@@ -135,6 +137,44 @@ async def run_job(
             detail='Insufficient balance',
         )
     return RunJobResponse(job_id=job.id, status=job.status, credits_held=credits_held)
+
+
+@router.get('/{job_id}/estimate')
+async def estimate_job(
+    job_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> EstimateResponse:
+    try:
+        data = await job_service.get_estimate(job_id, str(current_user.id), db)
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    return EstimateResponse(**data)
+
+
+@router.get('/{job_id}/download')
+async def download_result(
+    job_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> FileResponse:
+    try:
+        result_path, filename = await job_service.get_result_file_path(
+            job_id, str(current_user.id), db
+        )
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    except JobStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return FileResponse(
+        path=result_path,
+        filename=filename,
+        media_type='application/octet-stream',
+    )
 
 
 @router.get('/{job_id}/result')
