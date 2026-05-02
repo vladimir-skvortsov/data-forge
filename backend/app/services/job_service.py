@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.core.cost_estimator import estimate_cost
+from app.core.cost_estimator import estimate_breakdown, estimate_cost
 from app.core.result_formatter import read_results
 from app.db.enums import FileStatus, FileType, JobStatus
 from app.db.models.job import Job
@@ -216,3 +216,38 @@ async def get_job_result(
         raise JobStateError('Result file not found on disk')
 
     return read_results(result_path)
+
+
+async def get_result_file_path(
+    job_id: str,
+    user_id: str,
+    db: AsyncSession,
+) -> tuple[Path, str]:
+    job = await _load_job_with_result(job_id, db)
+    if str(job.user_id) != user_id:
+        raise JobAccessDeniedError(job_id)
+    if job.status != JobStatus.COMPLETED:
+        raise JobStateError(f'Job is not completed (status: {job.status})')
+    if not job.result:
+        raise JobStateError('No result available')
+    result_path = Path(job.result.result_file_path)
+    if not result_path.exists():
+        raise JobStateError('Result file not found on disk')
+    return result_path, result_path.name
+
+
+async def get_estimate(
+    job_id: str,
+    user_id: str,
+    db: AsyncSession,
+) -> dict[str, Any]:
+    job = await get_job(job_id, user_id, db)
+    breakdown = estimate_breakdown(list(job.files), list(job.pipeline_config))
+    total = estimate_cost(list(job.files), list(job.pipeline_config))
+    balance = await billing_service.get_balance(user_id, db)
+    return {
+        'breakdown': breakdown,
+        'total_credits': total,
+        'current_balance': balance,
+        'can_proceed': balance >= total,
+    }
