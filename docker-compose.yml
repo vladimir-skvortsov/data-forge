@@ -110,11 +110,46 @@ services:
         condition: service_healthy
     networks: [ dataforge ]
 
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-dataforge}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks: [ dataforge ]
+
+  flower:
+    build: ./backend
+    command:
+      - uv
+      - run
+      - celery
+      - -A
+      - app.core.celery_app
+      - flower
+      - --port=5555
+    env_file: .env
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [ dataforge ]
+
 volumes:
   postgres_data:
   redis_data:
   storage:
   prometheus_data:
+  grafana_data:
 
 networks:
   dataforge:
