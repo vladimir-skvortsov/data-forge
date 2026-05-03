@@ -20,9 +20,6 @@ make dev
 | Grafana     | http://localhost:3000 (admin / dataforge) |
 | Flower      | http://localhost:5555      |
 
----
-
-
 ## Local development (without Docker)
 
 ```bash
