@@ -41,7 +41,7 @@ with col_title:
     st.header(job['title'])
 with col_run:
     st.write('')  # vertical nudge
-    btn_label = f'⏳ {status.capitalize()}…' if is_running else 'Run'
+    btn_label = f'{status.capitalize()}...' if is_running else 'Run'
     run_clicked = st.button(
         btn_label,
         type='primary',

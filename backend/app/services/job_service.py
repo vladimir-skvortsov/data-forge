@@ -192,7 +192,6 @@ async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Dec
         for f in job.files:
             f.status = FileStatus.QUEUED
         job.error_message = None
-        job.credits_charged = None
         job.completed_at = None
 
     estimate = estimate_cost(list(job.files), list(job.pipeline_config))

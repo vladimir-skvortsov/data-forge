@@ -158,7 +158,7 @@ async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:
     )
 
     job.status = JobStatus.COMPLETED
-    job.credits_charged = actual_charge
+    job.credits_charged = (job.credits_charged or Decimal('0')) + actual_charge
     job.completed_at = datetime.now(UTC)
 
     metrics.jobs_total.labels(status='completed').inc()
