@@ -1,0 +1,46 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: dataforge-alerts
+    folder: DataForge
+    interval: 5m
+    rules:
+      - uid: no-credits-charged-12h
+        title: "No credit deductions in 12 hours"
+        condition: threshold
+        data:
+          - refId: credits
+            relativeTimeRange:
+              from: 43200   # 12 hours in seconds
+              to: 0
+            datasourceUid: prometheus-dataforge
+            model:
+              expr: increase(dataforge_credits_charged_total[12h])
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 1
+              refId: credits
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: credits
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.01]
+                  operator:
+                    type: and
+                  query:
+                    params: [credits]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "No credits charged in 12 h — pipeline may be broken or idle"
+        labels:
+          severity: warning

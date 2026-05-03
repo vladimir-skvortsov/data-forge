@@ -114,6 +114,19 @@
         }
       ],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Celery queue length",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "dataforge_celery_queue_length",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }
