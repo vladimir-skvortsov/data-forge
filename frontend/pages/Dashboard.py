@@ -3,14 +3,6 @@ import streamlit as st
 import api_client
 import auth
 
-_STATUS_ICON: dict[str, str] = {
-    'draft': '⬜',
-    'pending': '🟡',
-    'processing': '🔵',
-    'completed': '✅',
-    'failed': '❌',
-}
-
 with st.sidebar:
     st.caption(st.session_state.get('user_email', ''))
 
@@ -54,7 +46,7 @@ with col_title:
     st.header('My Jobs')
 with col_btn:
     st.write('')  # vertical align spacer
-    if st.button('＋ New Job', type='primary', use_container_width=True):
+    if st.button('New job', type='primary', use_container_width=True):
         st.switch_page('pages/New_Job.py')
 
 jobs_resp = api_client.list_jobs()
@@ -66,20 +58,19 @@ if jobs_resp.status_code != 200:
 jobs = jobs_resp.json().get('items', [])
 
 if not jobs:
-    st.info('No jobs yet. Click **＋ New Job** to get started.')
+    st.info('No jobs yet. Click **New job** to get started.')
 else:
     for job in jobs:
-        icon = _STATUS_ICON.get(job['status'], '⬜')
         file_count = len(job.get('files', []))
         created = job.get('created_at', '')[:10]
         estimate = job.get('credits_estimate')
 
         with st.container(border=True):
-            c1, c2, c3, c4 = st.columns([5, 2, 1, 1])
+            c1, c2, c3 = st.columns([6, 1, 1])
             with c1:
                 st.markdown(f'**{job["title"]}**')
                 meta_parts = [
-                    f'{icon} {job["status"]}',
+                    job['status'].capitalize(),
                     f'{file_count} file(s)',
                     created,
                 ]
@@ -87,15 +78,10 @@ else:
                     meta_parts.append(f'{estimate} credits')
                 st.caption(' · '.join(meta_parts))
             with c2:
-                if job['status'] == 'completed':
-                    st.caption('✅ Done')
-                elif job['status'] == 'failed':
-                    st.caption('❌ Failed')
-            with c3:
                 if st.button('View', key=f'view_{job["id"]}', use_container_width=True):
                     st.session_state['selected_job_id'] = job['id']
                     st.switch_page('pages/Job_Detail.py')
-            with c4:
+            with c3:
                 confirm_key = f'confirm_del_{job["id"]}'
                 if st.session_state.get(confirm_key):
                     if st.button(
