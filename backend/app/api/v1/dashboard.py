@@ -8,6 +8,12 @@ from app.services import dashboard_service
 router = APIRouter(prefix='/dashboard', tags=['dashboard'])
 
 
+@router.get('/stats/public')
+async def get_public_stats(db: DBSession) -> DashboardStats:
+    data = await dashboard_service.get_public_stats(db)
+    return DashboardStats(**data)
+
+
 @router.get('/stats')
 async def get_stats(current_user: CurrentUser, db: DBSession) -> DashboardStats:
     data = await dashboard_service.get_stats(str(current_user.id), db)

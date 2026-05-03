@@ -67,23 +67,27 @@ def _login_page() -> None:
 
 auth.init_from_session_param()
 
+_analytics_page = st.Page('pages/Analytics.py', title='Analytics')
+
 if auth.is_authenticated():
     pg = st.navigation(
         [
             st.Page('pages/Dashboard.py', title='Dashboard', default=True),
-            st.Page('pages/Analytics.py', title='Analytics'),
             st.Page('pages/New_Job.py', title='New Job'),
             st.Page('pages/Job_Detail.py', title='Job Detail'),
+            _analytics_page,
         ],
         position='hidden',
     )
     with st.sidebar:
         st.page_link('pages/Dashboard.py', label='Dashboard')
-        st.page_link('pages/Analytics.py', label='Analytics')
         st.divider()
 else:
     pg = st.navigation(
-        [st.Page(_login_page, title='Sign In', default=True)],
+        [
+            st.Page(_login_page, title='Sign In', default=True),
+            _analytics_page,
+        ],
         position='hidden',
     )
 

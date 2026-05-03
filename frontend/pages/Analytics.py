@@ -5,11 +5,12 @@ import streamlit as st
 
 import api_client
 
-st.title('Analytics')
+st.title('DataForge — service analytics')
+st.caption('Aggregate stats across all users.')
 
-resp = api_client.get_stats()
+resp = api_client.get_public_stats()
 if resp.status_code != 200:
-    st.error('Failed to load stats')
+    st.error('Failed to load stats.')
     st.stop()
 
 data = resp.json()
@@ -21,7 +22,7 @@ total_jobs = sum(jobs_by_status.values())
 col1, col2, col3 = st.columns(3)
 col1.metric('Total jobs', total_jobs)
 col2.metric('Completed', jobs_by_status.get('completed', 0))
-col3.metric('Credits spent', f'{total_spent:.1f}')
+col3.metric('Credits charged', f'{total_spent:.1f}')
 
 st.divider()
 
@@ -34,7 +35,7 @@ if jobs_by_status:
 else:
     st.info('No jobs yet.')
 
-st.subheader('Credits spent (last 30 days)')
+st.subheader('Credits charged (last 30 days)')
 credits_by_day: list[dict] = data.get('credits_by_day', [])
 if credits_by_day:
     df_credits = (

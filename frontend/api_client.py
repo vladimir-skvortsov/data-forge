@@ -126,3 +126,7 @@ def download_result(job_id: str) -> httpx.Response:
 
 def get_stats() -> httpx.Response:
     return _get('/api/v1/dashboard/stats')
+
+
+def get_public_stats() -> httpx.Response:
+    return httpx.get(_url('/api/v1/dashboard/stats/public'), timeout=_TIMEOUT)
