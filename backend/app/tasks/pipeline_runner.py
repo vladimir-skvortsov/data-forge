@@ -7,6 +7,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from openai import APIConnectionError as OpenAIConnError
+from openai import InternalServerError as OpenAIServerError
+from openai import RateLimitError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -20,12 +23,33 @@ from app.services import billing_service
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_ERRORS = (
+    ConnectionError,
+    TimeoutError,
+    OpenAIConnError,
+    RateLimitError,
+    OpenAIServerError,
+)
+
 
 @celery_app.task(
-    bind=True, name='tasks.run_pipeline', queue='slow_queue', max_retries=0
+    bind=True,
+    name='tasks.run_pipeline',
+    queue='slow_queue',
+    max_retries=3,
+    default_retry_delay=60,
 )
-def run_pipeline(self, job_id: str) -> None:  # noqa: ARG002
-    asyncio.run(_execute(job_id))
+def run_pipeline(self, job_id: str) -> None:
+    try:
+        asyncio.run(_execute(job_id))
+    except _RETRYABLE_ERRORS as exc:
+        logger.warning(
+            'Transient error for job %s (attempt %d/%d), retrying',
+            job_id,
+            self.request.retries + 1,
+            self.max_retries,
+        )
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries)) from exc
 
 
 async def _execute(job_id: str) -> None:
@@ -44,6 +68,8 @@ async def _execute(job_id: str) -> None:
 
             try:
                 await _process_job(job, job_id, db)
+            except _RETRYABLE_ERRORS:
+                raise
             except Exception:
                 logger.exception('Pipeline failed for job %s', job_id)
                 await _handle_failure(job, job_id, db)
@@ -63,6 +89,8 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     for file in job.files:
         file.status = FileStatus.PROCESSING
     await db.flush()  # type: ignore[union-attr]
+
+    metrics.celery_queue_length.labels(queue='slow_queue').dec()
 
     pipeline_config = list(job.pipeline_config)
     schema_config = dict(job.schema_config)

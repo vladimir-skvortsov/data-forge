@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 jobs_total = Counter(
     'dataforge_jobs_total',
@@ -26,4 +26,10 @@ job_processing_duration_seconds = Histogram(
     'dataforge_job_processing_duration_seconds',
     'End-to-end job processing duration in seconds',
     buckets=[1, 5, 10, 30, 60, 120, 300, 600],
+)
+
+celery_queue_length = Gauge(
+    'dataforge_celery_queue_length',
+    'Current approximate number of tasks waiting in each Celery queue',
+    ['queue'],
 )

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
+from app.core import metrics
 from app.core.cost_estimator import estimate_breakdown, estimate_cost
 from app.core.result_formatter import read_results
 from app.db.enums import FileStatus, FileType, JobStatus
@@ -195,6 +196,7 @@ async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Dec
     await db.flush()
 
     run_pipeline.apply_async(args=[job_id], queue='slow_queue')
+    metrics.celery_queue_length.labels(queue='slow_queue').inc()
 
     return job, estimate
 
