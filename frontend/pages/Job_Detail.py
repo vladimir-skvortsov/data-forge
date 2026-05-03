@@ -5,15 +5,6 @@ import streamlit as st
 
 import api_client
 
-_STATUS_ICON: dict[str, str] = {
-    'draft': '⬜',
-    'pending': '🟡',
-    'processing': '🔵',
-    'completed': '✅',
-    'failed': '❌',
-}
-_FILE_STATUS_ICON = {'queued': '⬜', 'processing': '🔵', 'done': '✅', 'failed': '❌'}
-
 job_id = st.session_state.get('selected_job_id')
 if not job_id:
     st.error('No job selected. Please open a job from the Dashboard.')
@@ -32,7 +23,6 @@ if job_resp.status_code != 200:
 
 job = job_resp.json()
 status = job['status']
-icon = _STATUS_ICON.get(status, '⬜')
 is_running = status in ('pending', 'processing')
 has_files = bool(job.get('files'))
 
@@ -69,7 +59,7 @@ if run_clicked:
 
 col_s, col_e, col_c = st.columns(3)
 with col_s:
-    st.metric('Status', f'{icon} {status.capitalize()}')
+    st.metric('Status', status.capitalize())
 with col_e:
     st.metric('Credits estimate', job.get('credits_estimate') or '—')
 with col_c:
@@ -135,10 +125,9 @@ files = job.get('files', [])
 if files:
     st.subheader('Files')
     for file_info in files:
-        f_icon = _FILE_STATUS_ICON.get(file_info['status'], '⬜')
         size_kb = file_info['file_size_bytes'] // 1024
         st.write(
-            f'{f_icon} `{file_info["original_name"]}` — {size_kb} KB'
+            f'`{file_info["original_name"]}` — {size_kb} KB'
             f' ({file_info["file_type"]}, {file_info["status"]})'
         )
 
