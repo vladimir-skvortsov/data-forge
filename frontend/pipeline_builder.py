@@ -84,7 +84,7 @@ def render_pipeline_editor(key_prefix: str) -> None:
                 pipeline[i + 1], pipeline[i] = blk, pipeline[i + 1]
                 st.rerun()
         with bc4:
-            if st.button('✕', key=f'{key_prefix}_rm_{i}'):
+            if st.button('✕', key=f'{key_prefix}_rm_{i}', use_container_width=True):
                 pipeline.pop(i)
                 st.rerun()
 
@@ -159,7 +159,11 @@ def render_block_adder(key_prefix: str) -> None:
                         )
                         st.write(f'• `{field["name"]}` ({field["type"]}){desc_part}')
                     with rc2:
-                        if st.button('✕', key=f'{key_prefix}_sf_del_{fi}'):
+                        if st.button(
+                            '✕',
+                            key=f'{key_prefix}_sf_del_{fi}',
+                            use_container_width=True,
+                        ):
                             fields.pop(fi)
                             st.rerun()
                 if not fields:

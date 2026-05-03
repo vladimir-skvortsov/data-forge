@@ -35,12 +35,13 @@ if (
     st.session_state[f'{PREFIX}_pipeline'] = list(job.get('pipeline_config', []))
     st.session_state[f'{PREFIX}_job_id'] = job_id
 
-col_back, col_title = st.columns([1, 6])
-with col_back:
-    if st.button('Back'):
-        st.switch_page('pages/Job_Detail.py')
+col_title, col_back = st.columns([6, 1])
 with col_title:
-    st.header(f'Edit — {job["title"]}')
+    st.header(job['title'])
+with col_back:
+    st.write('')
+    if st.button('Back', use_container_width=True):
+        st.switch_page('pages/Job_Detail.py')
 
 new_title = st.text_input('Title', value=job['title'], key=f'{PREFIX}_title')
 
