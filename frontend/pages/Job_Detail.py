@@ -84,7 +84,7 @@ if status == 'draft' and has_files:
     if est_resp.status_code == 200:
         est = est_resp.json()
         with st.expander(
-            f'💰 Estimate: **{est["total_credits"]} credits**'
+            f'Estimate: **{est["total_credits"]} credits**'
             f' (balance: {est["current_balance"]})',
             expanded=False,
         ):
