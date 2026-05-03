@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12.9-slim
 
 # System dependencies: ffmpeg for pydub audio processing
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Create non-root user
+RUN useradd -m -u 1000 app
 
 WORKDIR /app
 
@@ -26,8 +29,10 @@ nltk.download('punkt_tab', quiet=True)"
 # Copy application source
 COPY . .
 
-# Create storage directory
-RUN mkdir -p /app/storage
+# Create storage directory and transfer ownership
+RUN mkdir -p /app/storage && chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 

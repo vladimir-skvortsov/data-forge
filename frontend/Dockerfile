@@ -1,6 +1,8 @@
-FROM python:3.12-slim
+FROM python:3.12.9-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.5.13 /uv /uvx /usr/local/bin/
+
+RUN useradd -m -u 1000 app
 
 WORKDIR /app
 
@@ -8,6 +10,10 @@ COPY pyproject.toml ./
 RUN uv sync --frozen --no-dev
 
 COPY . .
+
+RUN chown -R app:app /app
+
+USER app
 
 EXPOSE 8501
 
