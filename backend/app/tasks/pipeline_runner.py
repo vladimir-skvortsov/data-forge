@@ -11,6 +11,7 @@ from openai import APIConnectionError as OpenAIConnError
 from openai import InternalServerError as OpenAIServerError
 from openai import RateLimitError
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import metrics
@@ -79,7 +80,7 @@ async def _execute(job_id: str) -> None:
                 )
 
 
-async def _process_job(job: Job, job_id: str, db: object) -> None:
+async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:
     from app.config import settings
     from app.core.result_formatter import write_results
     from app.pipeline import run_pipeline as _run_pipeline
@@ -88,7 +89,7 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     job.status = JobStatus.PROCESSING
     for file in job.files:
         file.status = FileStatus.PROCESSING
-    await db.flush()  # type: ignore[union-attr]
+    await db.flush()
 
     metrics.celery_queue_length.labels(queue='slow_queue').dec()
 
@@ -122,7 +123,7 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     result_path = write_results(results, job_dir, output_format)
 
     db.add(
-        JobResult(  # type: ignore[union-attr]
+        JobResult(
             job_id=job.id,
             result_file_path=str(result_path),
             row_count=len(results),
@@ -132,7 +133,7 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     actual_charge = job.credits_estimate or Decimal('0')
     await billing_service.charge(
         str(job.user_id), job_id, actual_charge, actual_charge, db
-    )  # type: ignore[arg-type]
+    )
 
     job.status = JobStatus.COMPLETED
     job.credits_charged = actual_charge
@@ -142,14 +143,14 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     metrics.credits_charged_total.inc(float(actual_charge))
 
 
-async def _handle_failure(job: Job, job_id: str, db: object) -> None:
+async def _handle_failure(job: Job, job_id: str, db: AsyncSession) -> None:
     job.status = JobStatus.FAILED
     job.error_message = traceback.format_exc()[-2000:]
 
     held = job.credits_estimate or Decimal('0')
     if held > 0:
         try:
-            await billing_service.refund(str(job.user_id), job_id, held, db)  # type: ignore[arg-type]
+            await billing_service.refund(str(job.user_id), job_id, held, db)
         except Exception:
             logger.exception('Failed to refund credits for job %s', job_id)
 
