@@ -3,6 +3,8 @@ import logging
 import time
 import traceback
 import uuid
+
+from app.db.enums import FileType
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -10,16 +12,16 @@ from pathlib import Path
 from openai import APIConnectionError as OpenAIConnError
 from openai import InternalServerError as OpenAIServerError
 from openai import RateLimitError
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
+from sqlalchemy.pool import NullPool
 
 from app.core import metrics
 from app.core.celery_app import celery_app
+from app.config import settings
 from app.db.enums import FileStatus, JobStatus
 from app.db.models.job import Job
 from app.db.models.job_result import JobResult
-from app.db.session import AsyncSessionFactory
 from app.services import billing_service
 
 logger = logging.getLogger(__name__)
@@ -55,7 +57,15 @@ def run_pipeline(self, job_id: str) -> None:
 
 async def _execute(job_id: str) -> None:
     start = time.monotonic()
-    async with AsyncSessionFactory() as db:
+    # Create a fresh engine per task with NullPool — avoids "Future attached to a
+    # different loop" errors when Celery forks worker processes.
+    engine = create_async_engine(settings.postgres_url, poolclass=NullPool)
+    SessionFactory = async_sessionmaker(  # noqa: N806
+        bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
+    from sqlalchemy import select  # local import keeps module-level clean
+
+    async with SessionFactory() as db:
         async with db.begin():
             result = await db.execute(
                 select(Job)
@@ -110,7 +120,10 @@ async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:
         )
         file.status = FileStatus.DONE
         metrics.files_processed_total.labels(
-            file_type=file.file_type.value, status='done'
+            file_type=file.file_type.value
+            if isinstance(file.file_type, FileType)
+            else str(file.file_type),
+            status='done',
         ).inc()
 
     # Post-processing (operate on the aggregated result set)
@@ -158,7 +171,10 @@ async def _handle_failure(job: Job, job_id: str, db: AsyncSession) -> None:
         if file.status == FileStatus.PROCESSING:
             file.status = FileStatus.FAILED
             metrics.files_processed_total.labels(
-                file_type=file.file_type.value, status='failed'
+                file_type=file.file_type.value
+                if isinstance(file.file_type, FileType)
+                else str(file.file_type),
+                status='failed',
             ).inc()
 
     metrics.jobs_total.labels(status='failed').inc()

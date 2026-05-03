@@ -254,3 +254,16 @@ async def get_estimate(
         'current_balance': balance,
         'can_proceed': balance >= total,
     }
+
+
+async def retry_job(job_id: str, user_id: str, db: AsyncSession) -> Job:
+    job = await get_job(job_id, user_id, db)
+    if job.status != JobStatus.FAILED:
+        raise JobStateError(f'Cannot retry a job with status {job.status}')
+    job.status = JobStatus.DRAFT
+    job.error_message = None
+    for f in job.files:
+        f.status = FileStatus.QUEUED
+    await db.flush()
+    await db.refresh(job)
+    return job

@@ -177,6 +177,23 @@ async def download_result(
     )
 
 
+@router.post('/{job_id}/retry')
+async def retry_job(
+    job_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> JobOut:
+    try:
+        job = await job_service.retry_job(job_id, str(current_user.id), db)
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    except JobStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return JobOut.model_validate(job)
+
+
 @router.get('/{job_id}/result')
 async def get_job_result(
     job_id: str,

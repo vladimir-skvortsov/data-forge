@@ -46,6 +46,13 @@ with col_c:
 if status == 'failed' and job.get('error_message'):
     with st.expander('Error Details', expanded=True):
         st.code(job['error_message'], language='text')
+    if st.button('🔄 Retry Job', type='primary'):
+        resp = api_client.retry_job(job_id)
+        if resp.status_code == 200:
+            st.success('Job reset to draft. You can now run it again.')
+            st.rerun()
+        else:
+            st.error(resp.json().get('detail', 'Failed to retry job.'))
 
 if status == 'draft':
     st.subheader('Upload Files')

@@ -112,6 +112,10 @@ def run_job(job_id: str) -> httpx.Response:
     return _post(f'/api/v1/jobs/{job_id}/run')
 
 
+def retry_job(job_id: str) -> httpx.Response:
+    return _post(f'/api/v1/jobs/{job_id}/retry')
+
+
 def get_result(job_id: str) -> httpx.Response:
     return _get(f'/api/v1/jobs/{job_id}/result')
 
