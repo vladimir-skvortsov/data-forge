@@ -65,6 +65,8 @@ def _login_page() -> None:
                         st.error(result)
 
 
+auth.init_from_session_param()
+
 if auth.is_authenticated():
     pg = st.navigation(
         [
