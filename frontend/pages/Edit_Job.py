@@ -37,7 +37,7 @@ if (
 
 col_back, col_title = st.columns([1, 6])
 with col_back:
-    if st.button('← Back'):
+    if st.button('Back'):
         st.switch_page('pages/Job_Detail.py')
 with col_title:
     st.header(f'Edit — {job["title"]}')
