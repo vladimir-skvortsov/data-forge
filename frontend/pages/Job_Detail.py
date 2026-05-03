@@ -103,7 +103,10 @@ for file_info in files:
         )
     with fc2:
         if can_edit and st.button(
-            '✕', key=f'del_file_{file_info["id"]}', help='Remove file'
+            '✕',
+            key=f'del_file_{file_info["id"]}',
+            help='Remove file',
+            use_container_width=True,
         ):
             resp = api_client.delete_file(job_id, file_info['id'])
             if resp.status_code == 204:
