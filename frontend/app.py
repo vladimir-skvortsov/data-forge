@@ -81,7 +81,7 @@ if auth.is_authenticated():
         position='hidden',
     )
     with st.sidebar:
-        st.page_link('pages/Dashboard.py', label='Dashboard')
+        st.page_link('pages/Dashboard.py', label='Home')
         st.divider()
 else:
     pg = st.navigation(

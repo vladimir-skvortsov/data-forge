@@ -13,7 +13,6 @@ _STATUS_ICON: dict[str, str] = {
 
 with st.sidebar:
     st.caption(st.session_state.get('user_email', ''))
-    st.divider()
 
     balance_resp = api_client.get_balance()
     if balance_resp.status_code == 200:
@@ -22,10 +21,10 @@ with st.sidebar:
     else:
         st.metric('Credits', '—')
 
-    with st.expander('Top Up'):
-        with st.form('topup_form'):
+    with st.expander('Top up'):
+        with st.form('topup_form', border=False):
             amount = st.number_input('Amount', min_value=1.0, value=10.0, step=1.0)
-            if st.form_submit_button('Add Credits', use_container_width=True):
+            if st.form_submit_button('Add credits', use_container_width=True):
                 resp = api_client.topup(amount)
                 if resp.status_code == 201:
                     st.success('Credits added!')
@@ -34,8 +33,8 @@ with st.sidebar:
                     detail = resp.json().get('detail', 'Top-up failed')
                     st.error(detail)
 
-    with st.expander('Promo Code'):
-        with st.form('promo_form'):
+    with st.expander('Promo code'):
+        with st.form('promo_form', border=False):
             code = st.text_input('Code')
             if st.form_submit_button('Apply', use_container_width=True):
                 resp = api_client.activate_promo(code)
