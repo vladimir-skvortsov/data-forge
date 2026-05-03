@@ -100,8 +100,8 @@ if files:
 pipeline = job.get('pipeline_config', [])
 if pipeline:
     with st.expander('Pipeline', expanded=False):
-        for i, blk in enumerate(pipeline):
-            st.write(f'`{i + 1}. {blk["type"]}`')
+        for i, block in enumerate(pipeline):
+            st.write(f'`{i + 1}. {block["type"]}`')
 else:
     st.caption('Identity pipeline (no processing blocks).')
 
