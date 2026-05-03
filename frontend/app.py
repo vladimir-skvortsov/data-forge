@@ -68,10 +68,10 @@ def _login_page() -> None:
 if auth.is_authenticated():
     pg = st.navigation(
         [
-            st.Page('pages/Dashboard.py', title='Dashboard', icon='🏠', default=True),
-            st.Page('pages/Analytics.py', title='Analytics', icon='📊'),
-            st.Page('pages/New_Job.py', title='New Job', icon='➕'),
-            st.Page('pages/Job_Detail.py', title='Job Detail', icon='📄'),
+            st.Page('pages/Dashboard.py', title='Dashboard', default=True),
+            st.Page('pages/Analytics.py', title='Analytics'),
+            st.Page('pages/New_Job.py', title='New Job'),
+            st.Page('pages/Job_Detail.py', title='Job Detail'),
         ],
         position='hidden',
     )
