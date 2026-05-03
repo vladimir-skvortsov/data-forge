@@ -113,7 +113,7 @@ else:
     st.caption('Identity pipeline (no processing blocks).')
 
 if status == 'draft':
-    st.subheader('Run Job')
+    st.subheader('Run job')
     if files:
         # Show cost estimate breakdown before run
         est_resp = api_client.get_estimate(job_id)
@@ -129,7 +129,7 @@ if status == 'draft':
             if not est['can_proceed']:
                 st.error('Insufficient balance. Please top up your account.')
 
-        if st.button('▶ Run Job', type='primary', use_container_width=True):
+        if st.button('Run job', type='primary', use_container_width=True):
             run_resp = api_client.run_job(job_id)
             if run_resp.status_code == 200:
                 run_data = run_resp.json()
