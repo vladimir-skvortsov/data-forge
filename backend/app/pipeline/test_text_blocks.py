@@ -104,7 +104,11 @@ async def test_translate_writes_translated_content(txt_file: str) -> None:
     mock_client = AsyncMock()
     mock_client.chat.completions.create.return_value = mock_response
 
-    with patch('app.pipeline.text_blocks.get_client', return_value=mock_client):
+    with patch(
+        'app.pipeline.text_blocks.safe_chat_completion',
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
         result = await translate(txt_file, {'target_lang': 'ru'})
 
     assert result == txt_file

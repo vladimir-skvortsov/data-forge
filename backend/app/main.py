@@ -1,11 +1,13 @@
 import logging
-from collections.abc import AsyncGenerator
+import uuid
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.billing import router as billing_router
@@ -15,6 +17,39 @@ from app.config import settings
 
 _API_V1_PREFIX = '/api/v1'
 _instrumentator = Instrumentator(should_group_status_codes=True)
+
+
+def _configure_logging() -> None:
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
+            structlog.processors.TimeStamper(fmt='iso'),
+            structlog.processors.StackInfoRenderer(),
+            structlog.dev.ConsoleRenderer()
+            if settings.debug
+            else structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.stdlib.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+    logging.basicConfig(
+        format='%(message)s',
+        level=logging.DEBUG if settings.debug else logging.INFO,
+    )
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        request_id = request.headers.get('X-Request-ID', str(uuid.uuid4()))
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+        response: Response = await call_next(request)
+        response.headers['X-Request-ID'] = request_id
+        return response
 
 
 def _configure_logging() -> None:
@@ -60,6 +95,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(RequestIDMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import traceback
 import uuid
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.core import metrics
 from app.core.celery_app import celery_app
 from app.db.enums import FileStatus, JobStatus
 from app.db.models.job import Job
@@ -27,6 +29,7 @@ def run_pipeline(self, job_id: str) -> None:  # noqa: ARG002
 
 
 async def _execute(job_id: str) -> None:
+    start = time.monotonic()
     async with AsyncSessionFactory() as db:
         async with db.begin():
             result = await db.execute(
@@ -44,6 +47,10 @@ async def _execute(job_id: str) -> None:
             except Exception:
                 logger.exception('Pipeline failed for job %s', job_id)
                 await _handle_failure(job, job_id, db)
+            finally:
+                metrics.job_processing_duration_seconds.observe(
+                    time.monotonic() - start
+                )
 
 
 async def _process_job(job: Job, job_id: str, db: object) -> None:
@@ -73,6 +80,9 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
             }
         )
         file.status = FileStatus.DONE
+        metrics.files_processed_total.labels(
+            file_type=file.file_type.value, status='done'
+        ).inc()
 
     # Post-processing (operate on the aggregated result set)
     if 'deduplicate' in block_types:
@@ -100,6 +110,9 @@ async def _process_job(job: Job, job_id: str, db: object) -> None:
     job.credits_charged = actual_charge
     job.completed_at = datetime.now(UTC)
 
+    metrics.jobs_total.labels(status='completed').inc()
+    metrics.credits_charged_total.inc(float(actual_charge))
+
 
 async def _handle_failure(job: Job, job_id: str, db: object) -> None:
     job.status = JobStatus.FAILED
@@ -115,3 +128,8 @@ async def _handle_failure(job: Job, job_id: str, db: object) -> None:
     for file in job.files:
         if file.status == FileStatus.PROCESSING:
             file.status = FileStatus.FAILED
+            metrics.files_processed_total.labels(
+                file_type=file.file_type.value, status='failed'
+            ).inc()
+
+    metrics.jobs_total.labels(status='failed').inc()

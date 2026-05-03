@@ -6,7 +6,7 @@ import nltk
 import spacy
 
 from app.config import settings
-from app.core.openrouter import get_client
+from app.core.openrouter import safe_audio_transcription, safe_chat_completion
 from app.db.enums import FileType
 
 
@@ -61,17 +61,13 @@ def _extract_docx(file_path: str) -> str:
 
 
 async def _transcribe_audio(file_path: str, params: dict) -> str:
-    client = get_client()
     model = str(params.get('model', settings.openrouter_stt_model))
     with Path(file_path).open('rb') as audio_file:
-        transcript = await client.audio.transcriptions.create(
-            model=model, file=audio_file
-        )
-    return transcript.text
+        transcript = await safe_audio_transcription(model=model, file=audio_file)
+    return transcript.text  # type: ignore[union-attr]
 
 
 async def _describe_image(file_path: str, params: dict) -> str:
-    client = get_client()
     model = str(params.get('model', settings.openrouter_vision_model))
     ext = Path(file_path).suffix.lstrip('.').lower()
     mime = (
@@ -81,7 +77,7 @@ async def _describe_image(file_path: str, params: dict) -> str:
     with Path(file_path).open('rb') as f:
         b64 = base64.b64encode(f.read()).decode('utf-8')
 
-    response = await client.chat.completions.create(
+    response = await safe_chat_completion(
         model=model,
         messages=[
             {
@@ -99,16 +95,15 @@ async def _describe_image(file_path: str, params: dict) -> str:
             }
         ],
     )
-    return response.choices[0].message.content or ''
+    return response.choices[0].message.content or ''  # type: ignore[union-attr]
 
 
 async def translate(file_path: str, params: dict) -> str:
-    client = get_client()
     target_lang = params.get('target_lang', 'en')
     model = str(params.get('model', settings.openrouter_llm_model))
 
     content = Path(file_path).read_text(encoding='utf-8')
-    response = await client.chat.completions.create(
+    response = await safe_chat_completion(
         model=model,
         messages=[
             {
@@ -120,7 +115,7 @@ async def translate(file_path: str, params: dict) -> str:
             }
         ],
     )
-    translated = response.choices[0].message.content or ''
+    translated = response.choices[0].message.content or ''  # type: ignore[union-attr]
     Path(file_path).write_text(translated, encoding='utf-8')
     return file_path
 

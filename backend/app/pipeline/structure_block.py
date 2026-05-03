@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from app.config import settings
-from app.core.openrouter import get_client
+from app.core.openrouter import safe_chat_completion
 from app.db.enums import FileType
 
 
@@ -39,13 +39,12 @@ async def _structure_text(file_path: str, schema_config: dict, model: str) -> di
     content = Path(file_path).read_text(encoding='utf-8')
     prompt = _schema_prompt(schema_config) + f'Content:\n{content}'
 
-    client = get_client()
-    response = await client.chat.completions.create(
+    response = await safe_chat_completion(
         model=model,
         messages=[{'role': 'user', 'content': prompt}],
         response_format={'type': 'json_object'},
     )
-    return _parse_json(response.choices[0].message.content or '{}')
+    return _parse_json(response.choices[0].message.content or '{}')  # type: ignore[union-attr]
 
 
 async def _structure_image(file_path: str, schema_config: dict, model: str) -> dict:
@@ -57,8 +56,7 @@ async def _structure_image(file_path: str, schema_config: dict, model: str) -> d
 
     prompt = _schema_prompt(schema_config) + 'Extract the data from the image above.'
 
-    client = get_client()
-    response = await client.chat.completions.create(
+    response = await safe_chat_completion(
         model=model,
         messages=[
             {
@@ -74,4 +72,4 @@ async def _structure_image(file_path: str, schema_config: dict, model: str) -> d
         ],
         response_format={'type': 'json_object'},
     )
-    return _parse_json(response.choices[0].message.content or '{}')
+    return _parse_json(response.choices[0].message.content or '{}')  # type: ignore[union-attr]
