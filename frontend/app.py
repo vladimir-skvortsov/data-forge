@@ -69,11 +69,16 @@ if auth.is_authenticated():
     pg = st.navigation(
         [
             st.Page('pages/Dashboard.py', title='Dashboard', icon='🏠', default=True),
+            st.Page('pages/Analytics.py', title='Analytics', icon='📊'),
             st.Page('pages/New_Job.py', title='New Job', icon='➕'),
             st.Page('pages/Job_Detail.py', title='Job Detail', icon='📄'),
-            st.Page('pages/Analytics.py', title='Analytics', icon='📊'),
-        ]
+        ],
+        position='hidden',
     )
+    with st.sidebar:
+        st.page_link('pages/Dashboard.py', label='Dashboard')
+        st.page_link('pages/Analytics.py', label='Analytics')
+        st.divider()
 else:
     pg = st.navigation(
         [st.Page(_login_page, title='Sign In', default=True)],
