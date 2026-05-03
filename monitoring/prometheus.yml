@@ -7,5 +7,5 @@ global:
 scrape_configs:
   - job_name: dataforge-backend
     static_configs:
-      - targets: ["backend:8000"]
+      - targets: ["host.docker.internal:8000"]
     metrics_path: /metrics
