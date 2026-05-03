@@ -64,7 +64,7 @@ def render_pipeline_editor(key_prefix: str) -> None:
         return
 
     for i, blk in enumerate(pipeline):
-        bc1, bc2, bc3, bc4 = st.columns([5, 1, 1, 1])
+        bc1, bc_nav, bc4 = st.columns([6, 2, 1])
         with bc1:
             if blk['type'] == 'structure':
                 schema_len = len(blk['params'].get('schema', []))
@@ -75,14 +75,26 @@ def render_pipeline_editor(key_prefix: str) -> None:
             else:
                 preview = 'no params'
             st.write(f'`{i + 1}. {blk["type"]}` — {preview}')
-        with bc2:
-            if i > 0 and st.button('↑', key=f'{key_prefix}_up_{i}'):
-                pipeline[i - 1], pipeline[i] = blk, pipeline[i - 1]
-                st.rerun()
-        with bc3:
-            if i < len(pipeline) - 1 and st.button('↓', key=f'{key_prefix}_dn_{i}'):
-                pipeline[i + 1], pipeline[i] = blk, pipeline[i + 1]
-                st.rerun()
+        with bc_nav:
+            nav_up, nav_dn = st.columns(2)
+            with nav_up:
+                if st.button(
+                    '↑',
+                    key=f'{key_prefix}_up_{i}',
+                    disabled=i == 0,
+                    use_container_width=True,
+                ):
+                    pipeline[i - 1], pipeline[i] = blk, pipeline[i - 1]
+                    st.rerun()
+            with nav_dn:
+                if st.button(
+                    '↓',
+                    key=f'{key_prefix}_dn_{i}',
+                    disabled=i == len(pipeline) - 1,
+                    use_container_width=True,
+                ):
+                    pipeline[i + 1], pipeline[i] = blk, pipeline[i + 1]
+                    st.rerun()
         with bc4:
             if st.button('✕', key=f'{key_prefix}_rm_{i}', use_container_width=True):
                 pipeline.pop(i)
