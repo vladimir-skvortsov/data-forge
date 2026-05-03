@@ -55,7 +55,7 @@ else:
 pipeline_builder.render_block_adder(PREFIX)
 
 st.divider()
-if st.button('Save Changes', type='primary', use_container_width=True):
+if st.button('Save', type='primary', use_container_width=True):
     patch_resp = api_client.update_job(
         job_id,
         title=new_title.strip() if new_title.strip() != job['title'] else None,

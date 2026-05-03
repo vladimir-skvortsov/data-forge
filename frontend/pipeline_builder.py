@@ -90,7 +90,7 @@ def render_pipeline_editor(key_prefix: str) -> None:
 
 
 def render_block_adder(key_prefix: str) -> None:
-    """Render block-type selector + params form + 'Add Block' button."""
+    """Render block-type selector + params form + 'Add' button."""
     pc1, pc2 = st.columns(2)
     with pc1:
         category = st.selectbox(
@@ -187,7 +187,7 @@ def render_block_adder(key_prefix: str) -> None:
                     block_params = {'schema': [], 'output_format': struct_format}
     else:
         if default_params:
-            with st.expander('Block Parameters', expanded=True):
+            with st.expander('Block parameters', expanded=True):
                 params_raw = st.text_area(
                     'Params (JSON)',
                     value=json.dumps(default_params, indent=2),
@@ -202,7 +202,7 @@ def render_block_adder(key_prefix: str) -> None:
         else:
             block_params = {}
 
-    if st.button('＋ Add Block', type='primary', key=f'{key_prefix}_add_blk'):
+    if st.button('Add block', type='primary', key=f'{key_prefix}_add_blk'):
         pipeline = st.session_state.setdefault(f'{key_prefix}_pipeline', [])
         pipeline.append({'type': selected_type, 'params': block_params})
         if is_structure:
