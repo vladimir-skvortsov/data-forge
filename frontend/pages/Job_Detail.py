@@ -67,14 +67,13 @@ if run_clicked:
         else:
             st.error('Failed to start job.')
 
-# ── Status metrics ─────────────────────────────────────────────────────────────
 col_s, col_e, col_c = st.columns(3)
 with col_s:
-    st.metric('Status', f'{icon} {status.upper()}')
+    st.metric('Status', f'{icon} {status.capitalize()}')
 with col_e:
-    st.metric('Credits Estimate', job.get('credits_estimate') or '—')
+    st.metric('Credits estimate', job.get('credits_estimate') or '—')
 with col_c:
-    st.metric('Credits Charged', job.get('credits_charged') or '—')
+    st.metric('Credits charged', job.get('credits_charged') or '—')
 
 if status == 'failed' and job.get('error_message'):
     with st.expander('Error Details', expanded=True):
@@ -168,7 +167,7 @@ if status == 'completed':
             if dl_resp.status_code == 200:
                 ext = job.get('schema_config', {}).get('output_format', 'json')
                 st.download_button(
-                    '⬇ Download',
+                    'Download',
                     data=dl_resp.content,
                     file_name=f'result_{job_id[:8]}.{ext}',
                     use_container_width=True,
@@ -180,7 +179,7 @@ if status == 'completed':
                 try:
                     df = pd.DataFrame([r['structured'] for r in structured])
                     st.dataframe(df, use_container_width=True)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     st.warning('Could not render as table — showing raw JSON.')
                     st.json([r['structured'] for r in structured])
             with tab_json:
