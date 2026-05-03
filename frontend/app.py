@@ -20,7 +20,7 @@ def _login_page() -> None:
         unsafe_allow_html=True,
     )
 
-    col, _ = st.columns([1, 1])
+    _, col, _ = st.columns([1, 2, 1])
     with col:
         tab_login, tab_register = st.tabs(['Sign In', 'Sign Up'])
 
