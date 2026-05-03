@@ -8,6 +8,7 @@ from app.schemas.jobs import (
     JobCreateRequest,
     JobListResponse,
     JobOut,
+    JobUpdateRequest,
     RunJobResponse,
 )
 from app.services import job_service
@@ -113,6 +114,49 @@ async def upload_file(
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
         )
+    return JobOut.model_validate(job)
+
+
+@router.delete('/{job_id}/files/{file_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_file(
+    job_id: str,
+    file_id: str,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> None:
+    try:
+        await job_service.delete_file(job_id, file_id, str(current_user.id), db)
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    except JobStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+@router.patch('/{job_id}')
+async def update_job(
+    job_id: str,
+    body: JobUpdateRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> JobOut:
+    try:
+        job = await job_service.update_job(
+            job_id,
+            str(current_user.id),
+            title=body.title,
+            pipeline_config=[b.model_dump() for b in body.pipeline_config]
+            if body.pipeline_config is not None
+            else None,
+            db=db,
+        )
+    except JobNotFoundError:
+        raise _job_not_found()
+    except JobAccessDeniedError:
+        raise _job_forbidden()
+    except JobStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return JobOut.model_validate(job)
 
 

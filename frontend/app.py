@@ -75,6 +75,7 @@ if auth.is_authenticated():
             st.Page('pages/Dashboard.py', title='Dashboard', default=True),
             st.Page('pages/New_Job.py', title='New Job'),
             st.Page('pages/Job_Detail.py', title='Job Detail'),
+            st.Page('pages/Edit_Job.py', title='Edit Job'),
             _analytics_page,
         ],
         position='hidden',

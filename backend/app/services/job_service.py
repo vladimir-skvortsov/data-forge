@@ -135,8 +135,8 @@ async def add_file(
     db: AsyncSession,
 ) -> JobFile:
     job = await get_job(job_id, user_id, db)
-    if job.status != JobStatus.DRAFT:
-        raise JobStateError('Files can only be added to draft jobs')
+    if job.status in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise JobStateError('Files cannot be changed while job is running')
     if len(job.files) >= settings.max_files_per_job:
         raise FileLimitExceededError(f'Max {settings.max_files_per_job} files per job')
 
@@ -175,6 +175,44 @@ async def add_file(
     db.add(job_file)
     await db.flush()
     return job_file
+
+
+async def delete_file(
+    job_id: str,
+    file_id: str,
+    user_id: str,
+    db: AsyncSession,
+) -> None:
+    job = await get_job(job_id, user_id, db)
+    if job.status in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise JobStateError('Files cannot be changed while job is running')
+    file = next((f for f in job.files if str(f.id) == file_id), None)
+    if file is None:
+        raise JobNotFoundError(file_id)
+    disk_path = Path(file.file_path)
+    await db.delete(file)
+    await db.flush()
+    if disk_path.exists():
+        disk_path.unlink(missing_ok=True)
+
+
+async def update_job(
+    job_id: str,
+    user_id: str,
+    title: str | None,
+    pipeline_config: list[dict[str, Any]] | None,
+    db: AsyncSession,
+) -> Job:
+    job = await get_job(job_id, user_id, db)
+    if job.status in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise JobStateError('Cannot edit a job while it is running')
+    if title is not None:
+        job.title = title
+    if pipeline_config is not None:
+        job.pipeline_config = pipeline_config
+    await db.flush()
+    await db.refresh(job, attribute_names=['files'])
+    return job
 
 
 async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Decimal]:

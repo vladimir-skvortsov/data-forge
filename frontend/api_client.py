@@ -32,6 +32,10 @@ def _post(path: str, **kwargs: Any) -> httpx.Response:
     return httpx.post(_url(path), headers=_auth_headers(), timeout=_TIMEOUT, **kwargs)
 
 
+def _patch(path: str, body: dict | None = None) -> httpx.Response:
+    return httpx.patch(_url(path), json=body, headers=_auth_headers(), timeout=_TIMEOUT)
+
+
 def _delete(path: str) -> httpx.Response:
     return httpx.delete(_url(path), headers=_auth_headers(), timeout=_TIMEOUT)
 
@@ -104,6 +108,21 @@ def upload_file(job_id: str, content: bytes, filename: str) -> httpx.Response:
         headers=_auth_headers(),
         timeout=_UPLOAD_TIMEOUT,
     )
+
+
+def delete_file(job_id: str, file_id: str) -> httpx.Response:
+    return _delete(f'/api/v1/jobs/{job_id}/files/{file_id}')
+
+
+def update_job(
+    job_id: str, title: str | None = None, pipeline_config: list | None = None
+) -> httpx.Response:
+    payload: dict = {}
+    if title is not None:
+        payload['title'] = title
+    if pipeline_config is not None:
+        payload['pipeline_config'] = pipeline_config
+    return _patch(f'/api/v1/jobs/{job_id}', payload)
 
 
 def run_job(job_id: str) -> httpx.Response:

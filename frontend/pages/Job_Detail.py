@@ -1,6 +1,5 @@
 import time
 
-import pandas as pd
 import streamlit as st
 
 import api_client
@@ -25,12 +24,18 @@ job = job_resp.json()
 status = job['status']
 is_running = status in ('pending', 'processing')
 has_files = bool(job.get('files'))
+can_edit = not is_running
 
-col_title, col_run = st.columns([5, 1])
+# ── Title row ─────────────────────────────────────────────────────────────────
+col_title, col_edit, col_run = st.columns([5, 1, 1])
 with col_title:
     st.header(job['title'])
+with col_edit:
+    st.write('')
+    if st.button('Edit', disabled=is_running, use_container_width=True):
+        st.switch_page('pages/Edit_Job.py')
 with col_run:
-    st.write('')  # vertical nudge
+    st.write('')
     btn_label = f'{status.capitalize()}...' if is_running else 'Run'
     run_clicked = st.button(
         btn_label,
@@ -57,6 +62,7 @@ if run_clicked:
         else:
             st.error('Failed to start job.')
 
+# ── Metrics ───────────────────────────────────────────────────────────────────
 col_s, col_e, col_c = st.columns(3)
 with col_s:
     st.metric('Status', status.capitalize())
@@ -83,10 +89,31 @@ if status == 'draft' and has_files:
         if not est['can_proceed']:
             st.warning('Insufficient balance. Please top up your account.')
 
-if status == 'draft':
-    st.subheader('Upload Files')
+# ── Files ─────────────────────────────────────────────────────────────────────
+st.subheader('Files')
+
+files = job.get('files', [])
+for file_info in files:
+    size_kb = file_info['file_size_bytes'] // 1024
+    fc1, fc2 = st.columns([8, 1])
+    with fc1:
+        st.write(
+            f'`{file_info["original_name"]}` — {size_kb} KB'
+            f' ({file_info["file_type"]}, {file_info["status"]})'
+        )
+    with fc2:
+        if can_edit and st.button(
+            '✕', key=f'del_file_{file_info["id"]}', help='Remove file'
+        ):
+            resp = api_client.delete_file(job_id, file_info['id'])
+            if resp.status_code == 204:
+                st.rerun()
+            else:
+                st.error('Failed to remove file.')
+
+if can_edit:
     uploaded = st.file_uploader(
-        'Choose files',
+        'Add files',
         accept_multiple_files=True,
         type=[
             'txt',
@@ -103,6 +130,7 @@ if status == 'draft':
             'm4a',
             'ogg',
         ],
+        label_visibility='collapsed',
     )
     if uploaded:
         if st.button('Upload', type='primary'):
@@ -121,70 +149,25 @@ if status == 'draft':
                 st.success(f'Uploaded {len(uploaded)} file(s).')
             st.rerun()
 
-files = job.get('files', [])
-if files:
-    st.subheader('Files')
-    for file_info in files:
-        size_kb = file_info['file_size_bytes'] // 1024
-        st.write(
-            f'`{file_info["original_name"]}` — {size_kb} KB'
-            f' ({file_info["file_type"]}, {file_info["status"]})'
-        )
-
+# ── Pipeline ──────────────────────────────────────────────────────────────────
 pipeline = job.get('pipeline_config', [])
-if pipeline:
-    with st.expander('Pipeline', expanded=False):
+with st.expander('Pipeline', expanded=False):
+    if pipeline:
         for i, block in enumerate(pipeline):
             st.write(f'`{i + 1}. {block["type"]}`')
-else:
-    st.caption('Identity pipeline (no processing blocks).')
-
-if status == 'completed':
-    st.subheader('Results')
-    result_resp = api_client.get_result(job_id)
-
-    if result_resp.status_code == 200:
-        records = result_resp.json()
-        structured = [r for r in records if r.get('structured')]
-
-        col_r, col_d = st.columns([3, 1])
-        col_r.success(
-            f'{len(records)} record(s) processed, {len(structured)} structured.'
-        )
-        with col_d:
-            dl_resp = api_client.download_result(job_id)
-            if dl_resp.status_code == 200:
-                st.download_button(
-                    'Download',
-                    data=dl_resp.content,
-                    file_name=f'result_{job_id[:8]}.zip',
-                    mime='application/zip',
-                    use_container_width=True,
-                )
-
-        if structured:
-            tab_table, tab_json = st.tabs(['Table', 'JSON'])
-            with tab_table:
-                try:
-                    df = pd.DataFrame([r['structured'] for r in structured])
-                    st.dataframe(df, use_container_width=True)
-                except Exception:
-                    st.warning('Could not render as table — showing raw JSON.')
-                    st.json([r['structured'] for r in structured])
-            with tab_json:
-                st.json(records)
-        else:
-            st.write(
-                'No structured data — files were processed without the Structure block.'
-            )
-            for r in records:
-                st.write(
-                    f'• `{r.get("file", "file")}` → `{r.get("processed_path", "—")}`'
-                )
-    elif result_resp.status_code == 409:
-        st.warning(result_resp.json().get('detail', 'Result not available yet.'))
     else:
-        st.error('Could not fetch results.')
+        st.caption('Identity pipeline (no processing blocks).')
+
+# ── Download ──────────────────────────────────────────────────────────────────
+if status == 'completed':
+    dl_resp = api_client.download_result(job_id)
+    if dl_resp.status_code == 200:
+        st.download_button(
+            'Download results',
+            data=dl_resp.content,
+            file_name=f'result_{job_id[:8]}.zip',
+            mime='application/zip',
+        )
 
 if is_running:
     with st.spinner(f'Job is {status}… refreshing in 5 s'):

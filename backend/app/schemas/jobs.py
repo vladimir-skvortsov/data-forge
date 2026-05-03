@@ -18,6 +18,11 @@ class JobCreateRequest(BaseModel):
     pipeline_config: list[PipelineBlockConfig] = []
 
 
+class JobUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    pipeline_config: list[PipelineBlockConfig] | None = None
+
+
 class JobFileOut(BaseModel):
     id: uuid.UUID
     original_name: str
