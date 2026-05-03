@@ -82,7 +82,10 @@ def estimate_breakdown(
     # Base cost per file type group
     by_type: dict[str, list[JobFile]] = {}
     for f in files:
-        by_type.setdefault(f.file_type.value, []).append(f)
+        ftype = (
+            f.file_type.value if isinstance(f.file_type, FileType) else str(f.file_type)
+        )
+        by_type.setdefault(ftype, []).append(f)
 
     for ftype, group in by_type.items():
         base = sum((estimate_file_base_cost(f) for f in group), Decimal('0'))
