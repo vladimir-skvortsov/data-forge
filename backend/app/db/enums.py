@@ -20,6 +20,7 @@ class FileType(str, enum.Enum):
     TEXT = 'text'
     IMAGE = 'image'
     AUDIO = 'audio'
+    VIDEO = 'video'
 
 
 class TransactionType(str, enum.Enum):

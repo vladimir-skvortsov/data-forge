@@ -132,6 +132,11 @@ if can_edit:
             'wav',
             'm4a',
             'ogg',
+            'mp4',
+            'mov',
+            'avi',
+            'mkv',
+            'webm',
         ],
         label_visibility='collapsed',
     )

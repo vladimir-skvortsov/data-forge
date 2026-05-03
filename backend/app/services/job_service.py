@@ -36,6 +36,11 @@ _EXTENSION_TO_FILE_TYPE: dict[str, FileType] = {
     '.m4a': FileType.AUDIO,
     '.ogg': FileType.AUDIO,
     '.flac': FileType.AUDIO,
+    '.mp4': FileType.VIDEO,
+    '.mov': FileType.VIDEO,
+    '.avi': FileType.VIDEO,
+    '.mkv': FileType.VIDEO,
+    '.webm': FileType.VIDEO,
 }
 
 

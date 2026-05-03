@@ -9,6 +9,7 @@ _IMAGE_CREDIT = Decimal('3')
 _AUDIO_CREDIT_PER_MINUTE = Decimal('2')
 
 BLOCK_PER_FILE_COSTS: dict[str, Decimal] = {
+    'video_to_audio': Decimal('2.0'),
     'image_resize': Decimal('0.5'),
     'image_upscale': Decimal('1.0'),
     'image_enhance': Decimal('0.5'),
@@ -42,6 +43,10 @@ def estimate_file_base_cost(file: JobFile) -> Decimal:
         else:
             # rough fallback: assume 128 kbps
             minutes = max(1, math.ceil(file.file_size_bytes / (128 * 1024 // 8 * 60)))
+        return Decimal(minutes) * _AUDIO_CREDIT_PER_MINUTE
+    if file.file_type == FileType.VIDEO:
+        # rough fallback: assume ~10 MB/min for compressed video
+        minutes = max(1, math.ceil(file.file_size_bytes / (10 * 1024 * 1024)))
         return Decimal(minutes) * _AUDIO_CREDIT_PER_MINUTE
     return Decimal('1')
 

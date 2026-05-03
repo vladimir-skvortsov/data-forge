@@ -3,7 +3,13 @@ from dataclasses import dataclass, field
 
 from app.db.enums import FileType
 from app.db.models.job_file import JobFile
-from app.pipeline import audio_blocks, image_blocks, structure_block, text_blocks
+from app.pipeline import (
+    audio_blocks,
+    image_blocks,
+    structure_block,
+    text_blocks,
+    video_blocks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +39,11 @@ async def _apply_block(
     params: dict,
 ) -> None:
     match block_type:
-        # ── image ──
+        # video
+        case 'video_to_audio':
+            state.file_path = video_blocks.video_to_audio(state.file_path, params)
+            state.file_type = FileType.AUDIO
+        # image
         case 'image_resize':
             state.file_path = image_blocks.resize(state.file_path, params)
         case 'image_upscale':
@@ -42,7 +52,7 @@ async def _apply_block(
             state.file_path = image_blocks.enhance(state.file_path, params)
         case 'image_grayscale':
             state.file_path = image_blocks.grayscale(state.file_path, params)
-        # ── audio ──
+        # audio
         case 'audio_remove_silence':
             state.file_path = audio_blocks.remove_silence(state.file_path, params)
         case 'audio_normalize':
@@ -51,24 +61,24 @@ async def _apply_block(
             state.file_path = audio_blocks.boost_volume(state.file_path, params)
         case 'audio_denoise':
             state.file_path = audio_blocks.denoise(state.file_path, params)
-        # ── text extraction ──
+        # text extraction
         case 'extract_text':
             state.file_path, state.file_type = await text_blocks.extract_text(
                 state.file_path, state.file_type, params
             )
-        # ── text transformation ──
+        # text transformation
         case 'translate':
             state.file_path = await text_blocks.translate(state.file_path, params)
         case 'lemmatize':
             state.file_path = text_blocks.lemmatize(state.file_path, params)
         case 'remove_stopwords':
             state.file_path = text_blocks.remove_stopwords(state.file_path, params)
-        # ── structuring ──
+        # structuring
         case 'structure':
             state.structured_data = await structure_block.structure(
                 state.file_path, state.file_type, params
             )
-        # ── post-processing blocks are applied at job level, not per-file ──
+        # post-processing blocks are applied at job level, not per-file
         case 'deduplicate' | 'remove_outliers':
             logger.debug(
                 'Block %s is applied at job level, skipping per-file', block_type

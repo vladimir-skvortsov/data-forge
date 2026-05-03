@@ -7,6 +7,9 @@ import json
 import streamlit as st
 
 BLOCKS: dict[str, list[tuple[str, str]]] = {
+    'Video': [
+        ('video_to_audio', 'Extract Audio'),
+    ],
     'Image': [
         ('image_resize', 'Resize'),
         ('image_upscale', 'Upscale'),
@@ -35,6 +38,7 @@ BLOCKS: dict[str, list[tuple[str, str]]] = {
 }
 
 DEFAULT_PARAMS: dict[str, dict] = {
+    'video_to_audio': {'format': 'mp3'},
     'image_resize': {'width': 800, 'height': 600},
     'image_upscale': {'factor': 2},
     'image_enhance': {'brightness': 1.2, 'contrast': 1.1, 'sharpness': 1.0},
