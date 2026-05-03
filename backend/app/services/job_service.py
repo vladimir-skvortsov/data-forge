@@ -101,6 +101,7 @@ async def create_job(
     )
     db.add(job)
     await db.flush()
+    await db.refresh(job, attribute_names=['files'])
     return job
 
 

@@ -185,11 +185,13 @@ if st.button(
     if resp.status_code == 201:
         job = resp.json()
         st.session_state['selected_job_id'] = job['id']
-        # Reset wizard state
-        del st.session_state['nj_schema_fields']
-        del st.session_state['nj_pipeline']
+        st.session_state.pop('nj_schema_fields', None)
+        st.session_state.pop('nj_pipeline', None)
         st.success('Job created! Redirecting…')
         st.switch_page('pages/Job_Detail.py')
     else:
-        detail = resp.json().get('detail', 'Unknown error')
+        try:
+            detail = resp.json().get('detail', resp.text or f'HTTP {resp.status_code}')
+        except Exception:  # noqa: BLE001
+            detail = resp.text or f'HTTP {resp.status_code}'
         st.error(f'Failed to create job: {detail}')
