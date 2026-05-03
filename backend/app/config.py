@@ -1,12 +1,16 @@
 """Application configuration via Pydantic Settings."""
 
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = Path(__file__).resolve().parents[2] / '.env'
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file='.env',
+        env_file=(str(_ENV_FILE), '.env'),
         env_file_encoding='utf-8',
         case_sensitive=False,
     )
@@ -44,14 +48,14 @@ class Settings(BaseSettings):
     max_files_per_job: int = 100
 
     # CORS
-    cors_origins: list[str] = ['http://localhost:8501']
+    cors_origins: str | list[str] = ['http://localhost:8501']
 
     @field_validator('cors_origins', mode='before')
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(',')]
-        return v
+        return list(v)
 
 
 settings = Settings()

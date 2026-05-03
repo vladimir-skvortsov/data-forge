@@ -291,26 +291,44 @@ async def build_result_zip(
     import io
     import zipfile
 
-    records = await get_job_result(job_id, user_id, db)
+    job = await _load_job_with_result(job_id, db)
+    if str(job.user_id) != user_id:
+        raise JobAccessDeniedError(job_id)
+    if job.status != JobStatus.COMPLETED:
+        raise JobStateError(f'Job is not completed (status: {job.status})')
+    if not job.result:
+        raise JobStateError('No result available')
+
+    records = read_results(Path(job.result.result_file_path))
+    has_structured = any(r.get('structured') for r in records)
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         seen: set[str] = set()
-        for record in records:
-            raw_path = record.get('processed_path') or ''
-            if not raw_path:
-                continue
-            p = Path(raw_path)
+
+        def _add(p: Path, preferred_name: str | None = None) -> None:
             if not p.exists():
-                continue
-            # Deduplicate and use just the filename inside the archive
-            arcname = p.name
+                return
+            arcname = preferred_name or p.name
             counter = 1
+            base = arcname
             while arcname in seen:
-                arcname = f'{p.stem}_{counter}{p.suffix}'
+                stem, suffix = base.rsplit('.', 1) if '.' in base else (base, '')
+                arcname = (
+                    f'{stem}_{counter}.{suffix}' if suffix else f'{stem}_{counter}'
+                )
                 counter += 1
             seen.add(arcname)
             zf.write(p, arcname)
+
+        result_path = Path(job.result.result_file_path)
+        _add(result_path)
+
+        if not has_structured:
+            for record in records:
+                raw_path = record.get('processed_path') or ''
+                if raw_path:
+                    _add(Path(raw_path))
 
     buf.seek(0)
     return buf.read()
