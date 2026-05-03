@@ -246,6 +246,39 @@ async def get_result_file_path(
     return result_path, result_path.name
 
 
+async def build_result_zip(
+    job_id: str,
+    user_id: str,
+    db: AsyncSession,
+) -> bytes:
+    import io
+    import zipfile
+
+    records = await get_job_result(job_id, user_id, db)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        seen: set[str] = set()
+        for record in records:
+            raw_path = record.get('processed_path') or ''
+            if not raw_path:
+                continue
+            p = Path(raw_path)
+            if not p.exists():
+                continue
+            # Deduplicate and use just the filename inside the archive
+            arcname = p.name
+            counter = 1
+            while arcname in seen:
+                arcname = f'{p.stem}_{counter}{p.suffix}'
+                counter += 1
+            seen.add(arcname)
+            zf.write(p, arcname)
+
+    buf.seek(0)
+    return buf.read()
+
+
 async def get_estimate(
     job_id: str,
     user_id: str,

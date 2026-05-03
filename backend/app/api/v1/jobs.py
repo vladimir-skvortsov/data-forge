@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.api.deps import CurrentUser
 from app.db.session import DBSession
@@ -158,21 +158,21 @@ async def download_result(
     job_id: str,
     current_user: CurrentUser,
     db: DBSession,
-) -> FileResponse:
+) -> Response:
     try:
-        result_path, filename = await job_service.get_result_file_path(
-            job_id, str(current_user.id), db
-        )
+        zip_bytes = await job_service.build_result_zip(job_id, str(current_user.id), db)
     except JobNotFoundError:
         raise _job_not_found()
     except JobAccessDeniedError:
         raise _job_forbidden()
     except JobStateError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-    return FileResponse(
-        path=result_path,
-        filename=filename,
-        media_type='application/octet-stream',
+    return Response(
+        content=zip_bytes,
+        media_type='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename="result_{job_id[:8]}.zip"'
+        },
     )
 
 

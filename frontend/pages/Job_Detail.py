@@ -154,11 +154,11 @@ if status == 'completed':
         with col_d:
             dl_resp = api_client.download_result(job_id)
             if dl_resp.status_code == 200:
-                ext = job.get('schema_config', {}).get('output_format', 'json')
                 st.download_button(
                     'Download',
                     data=dl_resp.content,
-                    file_name=f'result_{job_id[:8]}.{ext}',
+                    file_name=f'result_{job_id[:8]}.zip',
+                    mime='application/zip',
                     use_container_width=True,
                 )
 
