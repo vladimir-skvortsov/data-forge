@@ -89,12 +89,12 @@ if status == 'draft':
 files = job.get('files', [])
 if files:
     st.subheader('Files')
-    for f in files:
-        f_icon = _FILE_STATUS_ICON.get(f['status'], '⬜')
-        size_kb = f['file_size_bytes'] // 1024
+    for file_info in files:
+        f_icon = _FILE_STATUS_ICON.get(file_info['status'], '⬜')
+        size_kb = file_info['file_size_bytes'] // 1024
         st.write(
-            f'{f_icon} `{f["original_name"]}` — {size_kb} KB'
-            f' ({f["file_type"]}, {f["status"]})'
+            f'{f_icon} `{file_info["original_name"]}` — {size_kb} KB'
+            f' ({file_info["file_type"]}, {file_info["status"]})'
         )
 
 pipeline = job.get('pipeline_config', [])
