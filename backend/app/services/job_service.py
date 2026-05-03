@@ -211,8 +211,7 @@ async def update_job(
     if pipeline_config is not None:
         job.pipeline_config = pipeline_config
     await db.flush()
-    await db.refresh(job, attribute_names=['files'])
-    return job
+    return await get_job(job_id, user_id, db)
 
 
 async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Decimal]:
