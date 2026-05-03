@@ -3,8 +3,6 @@ import logging
 import time
 import traceback
 import uuid
-
-from app.db.enums import FileType
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -12,14 +10,15 @@ from pathlib import Path
 from openai import APIConnectionError as OpenAIConnError
 from openai import InternalServerError as OpenAIServerError
 from openai import RateLimitError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 from sqlalchemy.pool import NullPool
 
+from app.config import settings
 from app.core import metrics
 from app.core.celery_app import celery_app
-from app.config import settings
-from app.db.enums import FileStatus, JobStatus
+from app.db.enums import FileStatus, FileType, JobStatus
 from app.db.models.job import Job
 from app.db.models.job_result import JobResult
 from app.services import billing_service
@@ -63,31 +62,41 @@ async def _execute(job_id: str) -> None:
     SessionFactory = async_sessionmaker(  # noqa: N806
         bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
     )
-    from sqlalchemy import select  # local import keeps module-level clean
 
-    async with SessionFactory() as db:
-        async with db.begin():
-            result = await db.execute(
-                select(Job)
-                .options(selectinload(Job.files))
-                .where(Job.id == uuid.UUID(job_id))
-            )
-            job = result.scalar_one_or_none()
-            if job is None:
-                logger.error('Job %s not found in pipeline runner', job_id)
-                return
-
-            try:
-                await _process_job(job, job_id, db)
-            except _RETRYABLE_ERRORS:
-                raise
-            except Exception:
-                logger.exception('Pipeline failed for job %s', job_id)
-                await _handle_failure(job, job_id, db)
-            finally:
-                metrics.job_processing_duration_seconds.observe(
-                    time.monotonic() - start
+    failed = False
+    try:
+        async with SessionFactory() as db:
+            async with db.begin():
+                result = await db.execute(
+                    select(Job)
+                    .options(selectinload(Job.files))
+                    .where(Job.id == uuid.UUID(job_id))
                 )
+                job = result.scalar_one_or_none()
+                if job is None:
+                    logger.error('Job %s not found in pipeline runner', job_id)
+                    return
+                await _process_job(job, job_id, db)
+    except _RETRYABLE_ERRORS:
+        raise
+    except Exception:
+        logger.exception('Pipeline failed for job %s', job_id)
+        failed = True
+    finally:
+        metrics.job_processing_duration_seconds.observe(time.monotonic() - start)
+
+    if failed:
+        # Use a fresh session — the original transaction was rolled back by the exception.
+        async with SessionFactory() as db:
+            async with db.begin():
+                result = await db.execute(
+                    select(Job)
+                    .options(selectinload(Job.files))
+                    .where(Job.id == uuid.UUID(job_id))
+                )
+                job = result.scalar_one_or_none()
+                if job:
+                    await _handle_failure(job, job_id, db)
 
 
 async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:

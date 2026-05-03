@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import UploadFile
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,6 +15,7 @@ from app.core.result_formatter import read_results
 from app.db.enums import FileStatus, FileType, JobStatus
 from app.db.models.job import Job
 from app.db.models.job_file import JobFile
+from app.db.models.job_result import JobResult
 from app.services import billing_service
 from app.services.billing_service import InsufficientBalanceError
 from app.tasks.pipeline_runner import run_pipeline
@@ -260,6 +261,8 @@ async def retry_job(job_id: str, user_id: str, db: AsyncSession) -> Job:
     job = await get_job(job_id, user_id, db)
     if job.status != JobStatus.FAILED:
         raise JobStateError(f'Cannot retry a job with status {job.status}')
+    # Remove stale result row so the runner can INSERT fresh on next run
+    await db.execute(delete(JobResult).where(JobResult.job_id == uuid.UUID(job_id)))
     job.status = JobStatus.DRAFT
     job.error_message = None
     for f in job.files:
