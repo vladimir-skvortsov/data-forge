@@ -113,13 +113,17 @@ async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:
     metrics.celery_queue_length.labels(queue='slow_queue').dec()
 
     pipeline_config = list(job.pipeline_config)
-    schema_config = dict(job.schema_config)
     block_types = {str(b.get('type', '')) for b in pipeline_config}
-    output_format = str(schema_config.get('output_format', 'json'))
+
+    # Output format comes from the last structure block in the pipeline
+    output_format = 'json'
+    for block in pipeline_config:
+        if block.get('type') == 'structure':
+            output_format = str(block.get('params', {}).get('output_format', 'json'))
 
     results: list[dict] = []
     for file in job.files:
-        state = await _run_pipeline(file, pipeline_config, schema_config)
+        state = await _run_pipeline(file, pipeline_config)
         results.append(
             {
                 'file': file.original_name,

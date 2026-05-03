@@ -34,7 +34,6 @@ class Job(Base):
     status: Mapped[JobStatus] = mapped_column(
         String(20), server_default=text("'draft'")
     )
-    schema_config: Mapped[dict[str, Any]] = mapped_column(JSONB)
     pipeline_config: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         server_default=text("'[]'"),

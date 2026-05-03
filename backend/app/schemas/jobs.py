@@ -15,7 +15,6 @@ class PipelineBlockConfig(BaseModel):
 
 class JobCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    schema_config: dict[str, Any]
     pipeline_config: list[PipelineBlockConfig] = []
 
 
@@ -34,7 +33,6 @@ class JobOut(BaseModel):
     id: uuid.UUID
     title: str
     status: JobStatus
-    schema_config: dict[str, Any]
     pipeline_config: list[Any]
     credits_estimate: Decimal | None
     credits_charged: Decimal | None

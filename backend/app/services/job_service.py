@@ -89,7 +89,6 @@ async def _load_job_with_result(job_id: str, db: AsyncSession) -> Job:
 async def create_job(
     user_id: str,
     title: str,
-    schema_config: dict[str, Any],
     pipeline_config: list[dict[str, Any]],
     db: AsyncSession,
 ) -> Job:
@@ -97,7 +96,6 @@ async def create_job(
         user_id=uuid.UUID(user_id),
         title=title,
         status=JobStatus.DRAFT,
-        schema_config=schema_config,
         pipeline_config=pipeline_config,
     )
     db.add(job)

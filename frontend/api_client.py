@@ -78,14 +78,12 @@ def list_jobs() -> httpx.Response:
 
 def create_job(
     title: str,
-    schema_config: dict[str, Any],
     pipeline_config: list[dict[str, Any]],
 ) -> httpx.Response:
     return _post(
         '/api/v1/jobs',
         json={
             'title': title,
-            'schema_config': schema_config,
             'pipeline_config': pipeline_config,
         },
     )

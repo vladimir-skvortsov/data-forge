@@ -18,13 +18,12 @@ class PipelineState:
 async def run_pipeline(
     file: JobFile,
     pipeline_config: list[dict],
-    schema_config: dict,
 ) -> PipelineState:
     state = PipelineState(file_path=file.file_path, file_type=file.file_type)
     for block in pipeline_config:
         block_type = str(block.get('type', ''))
         params = dict(block.get('params') or {})
-        await _apply_block(state, block_type, params, schema_config)
+        await _apply_block(state, block_type, params)
     return state
 
 
@@ -32,7 +31,6 @@ async def _apply_block(
     state: PipelineState,
     block_type: str,
     params: dict,
-    schema_config: dict,
 ) -> None:
     match block_type:
         # ── image ──
@@ -68,10 +66,12 @@ async def _apply_block(
         # ── structuring ──
         case 'structure':
             state.structured_data = await structure_block.structure(
-                state.file_path, state.file_type, schema_config, params
+                state.file_path, state.file_type, params
             )
         # ── post-processing blocks are applied at job level, not per-file ──
         case 'deduplicate' | 'remove_outliers':
-            pass
+            logger.debug(
+                'Block %s is applied at job level, skipping per-file', block_type
+            )
         case _:
             logger.warning('Unknown pipeline block type: %s', block_type)

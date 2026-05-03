@@ -40,7 +40,6 @@ async def create_job(
     job = await job_service.create_job(
         user_id=str(current_user.id),
         title=body.title,
-        schema_config=body.schema_config,
         pipeline_config=[b.model_dump() for b in body.pipeline_config],
         db=db,
     )
