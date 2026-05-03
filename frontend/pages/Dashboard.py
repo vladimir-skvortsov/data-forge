@@ -97,9 +97,22 @@ else:
                     st.session_state['selected_job_id'] = job['id']
                     st.switch_page('pages/Job_Detail.py')
             with c4:
-                if job['status'] in ('draft', 'failed'):
+                confirm_key = f'confirm_del_{job["id"]}'
+                if st.session_state.get(confirm_key):
                     if st.button(
-                        'Delete', key=f'del_{job["id"]}', use_container_width=True
+                        'Sure?',
+                        key=f'del_yes_{job["id"]}',
+                        type='primary',
+                        use_container_width=True,
                     ):
                         api_client.delete_job(job['id'])
+                        st.session_state.pop(confirm_key, None)
+                        st.rerun()
+                else:
+                    if st.button(
+                        'Delete',
+                        key=f'del_{job["id"]}',
+                        use_container_width=True,
+                    ):
+                        st.session_state[confirm_key] = True
                         st.rerun()

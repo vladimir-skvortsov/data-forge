@@ -123,8 +123,8 @@ async def list_jobs(user_id: str, db: AsyncSession) -> list[Job]:
 
 async def delete_job(job_id: str, user_id: str, db: AsyncSession) -> None:
     job = await get_job(job_id, user_id, db)
-    if job.status not in (JobStatus.DRAFT, JobStatus.FAILED):
-        raise JobStateError(f'Cannot delete job in status {job.status}')
+    if job.status in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise JobStateError(f'Cannot delete a job while it is {job.status}')
     await db.delete(job)
 
 

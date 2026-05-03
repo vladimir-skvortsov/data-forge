@@ -24,7 +24,7 @@ class Transaction(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
     job_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey('jobs.id'), nullable=True
+        ForeignKey('jobs.id', ondelete='SET NULL'), nullable=True
     )
     type: Mapped[TransactionType] = mapped_column(String(20))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))

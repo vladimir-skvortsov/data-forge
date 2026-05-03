@@ -62,4 +62,6 @@ class Job(Base):
     files: Mapped[list[JobFile]] = relationship(
         back_populates='job', cascade='all, delete-orphan'
     )
-    result: Mapped[JobResult | None] = relationship(back_populates='job', uselist=False)
+    result: Mapped[JobResult | None] = relationship(
+        back_populates='job', uselist=False, cascade='all, delete-orphan'
+    )

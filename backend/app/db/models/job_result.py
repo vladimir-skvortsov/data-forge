@@ -20,7 +20,9 @@ class JobResult(Base):
         primary_key=True,
         server_default=text('gen_random_uuid()'),
     )
-    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('jobs.id'), unique=True)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey('jobs.id', ondelete='CASCADE'), unique=True
+    )
     result_file_path: Mapped[str] = mapped_column(String(500))
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
