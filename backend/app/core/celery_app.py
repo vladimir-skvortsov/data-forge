@@ -7,8 +7,7 @@ celery_app = Celery(
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
     include=[
-        'tasks.job_tasks',
-        'tasks.file_tasks',
+        'app.tasks.pipeline_runner',
     ],
 )
 
@@ -22,9 +21,6 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_routes={
-        'tasks.file_tasks.process_text_file': {'queue': 'fast_queue'},
-        'tasks.file_tasks.process_image_file': {'queue': 'slow_queue'},
-        'tasks.file_tasks.process_audio_file': {'queue': 'slow_queue'},
-        'tasks.job_tasks.postprocess_dataset': {'queue': 'postprocess_queue'},
+        'app.tasks.pipeline_runner.run_pipeline': {'queue': 'slow_queue'},
     },
 )
