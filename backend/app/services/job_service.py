@@ -181,10 +181,19 @@ async def add_file(
 
 async def run_job(job_id: str, user_id: str, db: AsyncSession) -> tuple[Job, Decimal]:
     job = await get_job(job_id, user_id, db)
-    if job.status != JobStatus.DRAFT:
-        raise JobStateError(f'Job is not in DRAFT status (current: {job.status})')
+    if job.status in (JobStatus.PENDING, JobStatus.PROCESSING):
+        raise JobStateError(f'Job is already running (status: {job.status})')
     if not job.files:
         raise JobStateError('Cannot run a job with no files')
+
+    # Re-run: purge previous result and reset per-file state
+    if job.status in (JobStatus.COMPLETED, JobStatus.FAILED):
+        await db.execute(delete(JobResult).where(JobResult.job_id == uuid.UUID(job_id)))
+        for f in job.files:
+            f.status = FileStatus.QUEUED
+        job.error_message = None
+        job.credits_charged = None
+        job.completed_at = None
 
     estimate = estimate_cost(list(job.files), list(job.pipeline_config))
 

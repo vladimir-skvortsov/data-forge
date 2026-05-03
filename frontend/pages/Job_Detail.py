@@ -33,8 +33,41 @@ if job_resp.status_code != 200:
 job = job_resp.json()
 status = job['status']
 icon = _STATUS_ICON.get(status, '⬜')
+is_running = status in ('pending', 'processing')
+has_files = bool(job.get('files'))
 
-st.header(job['title'])
+col_title, col_run = st.columns([5, 1])
+with col_title:
+    st.header(job['title'])
+with col_run:
+    st.write('')  # vertical nudge
+    btn_label = f'⏳ {status.capitalize()}…' if is_running else 'Run'
+    run_clicked = st.button(
+        btn_label,
+        type='primary',
+        disabled=is_running or not has_files,
+        use_container_width=True,
+        help='Upload at least one file to enable.' if not has_files else None,
+    )
+
+if run_clicked:
+    est_resp = api_client.get_estimate(job_id)
+    if est_resp.status_code == 200 and not est_resp.json().get('can_proceed'):
+        st.error('Insufficient balance. Please top up your account.')
+    else:
+        run_resp = api_client.run_job(job_id)
+        if run_resp.status_code == 200:
+            run_data = run_resp.json()
+            st.success(f'Job started! {run_data["credits_held"]} credits held.')
+            st.rerun()
+        elif run_resp.status_code == 402:
+            st.error('Insufficient balance. Please top up your account.')
+        elif run_resp.status_code == 409:
+            st.error(run_resp.json().get('detail', 'Conflict'))
+        else:
+            st.error('Failed to start job.')
+
+# ── Status metrics ─────────────────────────────────────────────────────────────
 col_s, col_e, col_c = st.columns(3)
 with col_s:
     st.metric('Status', f'{icon} {status.upper()}')
@@ -46,13 +79,20 @@ with col_c:
 if status == 'failed' and job.get('error_message'):
     with st.expander('Error Details', expanded=True):
         st.code(job['error_message'], language='text')
-    if st.button('🔄 Retry Job', type='primary'):
-        resp = api_client.retry_job(job_id)
-        if resp.status_code == 200:
-            st.success('Job reset to draft. You can now run it again.')
-            st.rerun()
-        else:
-            st.error(resp.json().get('detail', 'Failed to retry job.'))
+
+if status == 'draft' and has_files:
+    est_resp = api_client.get_estimate(job_id)
+    if est_resp.status_code == 200:
+        est = est_resp.json()
+        with st.expander(
+            f'💰 Estimate: **{est["total_credits"]} credits**'
+            f' (balance: {est["current_balance"]})',
+            expanded=False,
+        ):
+            for item in est.get('breakdown', []):
+                st.write(f'• {item["item"]} — {item["credits"]:.2f} credits')
+        if not est['can_proceed']:
+            st.warning('Insufficient balance. Please top up your account.')
 
 if status == 'draft':
     st.subheader('Upload Files')
@@ -75,7 +115,6 @@ if status == 'draft':
             'ogg',
         ],
     )
-
     if uploaded:
         if st.button('Upload', type='primary'):
             progress = st.progress(0, text='Uploading…')
@@ -111,38 +150,6 @@ if pipeline:
             st.write(f'`{i + 1}. {block["type"]}`')
 else:
     st.caption('Identity pipeline (no processing blocks).')
-
-if status == 'draft':
-    st.subheader('Run job')
-    if files:
-        # Show cost estimate breakdown before run
-        est_resp = api_client.get_estimate(job_id)
-        if est_resp.status_code == 200:
-            est = est_resp.json()
-            with st.expander(
-                f'💰 Estimate: **{est["total_credits"]} credits**'
-                f' (balance: {est["current_balance"]})',
-                expanded=True,
-            ):
-                for item in est.get('breakdown', []):
-                    st.write(f'• {item["item"]} — {item["credits"]:.2f} credits')
-            if not est['can_proceed']:
-                st.error('Insufficient balance. Please top up your account.')
-
-        if st.button('Run job', type='primary', use_container_width=True):
-            run_resp = api_client.run_job(job_id)
-            if run_resp.status_code == 200:
-                run_data = run_resp.json()
-                st.success(f'Job started! {run_data["credits_held"]} credits held.')
-                st.rerun()
-            elif run_resp.status_code == 402:
-                st.error('Insufficient balance. Please top up your account.')
-            elif run_resp.status_code == 409:
-                st.error(run_resp.json().get('detail', 'Conflict'))
-            else:
-                st.error('Failed to start job.')
-    else:
-        st.info('Upload at least one file before running.')
 
 if status == 'completed':
     st.subheader('Results')
@@ -191,7 +198,7 @@ if status == 'completed':
     else:
         st.error('Could not fetch results.')
 
-if status in ('pending', 'processing'):
+if is_running:
     with st.spinner(f'Job is {status}… refreshing in 5 s'):
         time.sleep(5)
     st.rerun()
