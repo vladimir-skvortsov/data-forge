@@ -4,8 +4,6 @@ Scalable ML service for automatic structuring of unstructured data based on user
 
 Users upload files (text, images, audio), define a JSON schema describing the target structure, assemble a processing pipeline from ready-made blocks, and receive a structured dataset (JSON / YAML / CSV / Parquet).
 
----
-
 ## Quick start
 
 ```bash
@@ -46,8 +44,6 @@ uv run celery -A app.core.celery_app worker --loglevel=info \
 ```
 
 Requires local PostgreSQL and Redis.
-
----
 
 ## Makefile targets
 
