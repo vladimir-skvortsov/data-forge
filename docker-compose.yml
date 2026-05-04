@@ -123,7 +123,7 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "3100:3000"
     depends_on:
       - prometheus
     networks: [ dataforge ]
