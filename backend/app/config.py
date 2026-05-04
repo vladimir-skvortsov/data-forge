@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # File storage
     storage_path: str = '/app/storage'
-    max_file_size_mb: int = 50
+    max_file_size_mb: int = 400
     max_files_per_job: int = 100
 
     # CORS

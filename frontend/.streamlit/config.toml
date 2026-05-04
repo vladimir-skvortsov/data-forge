@@ -2,5 +2,8 @@
 primaryColor = "#4a5759"
 font = "sans serif"
 
+[server]
+maxUploadSize = 400
+
 [browser]
 gatherUsageStats = false
