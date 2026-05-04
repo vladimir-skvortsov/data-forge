@@ -1,6 +1,9 @@
 from openai import APIError, AsyncOpenAI
+from openai.types.audio import Transcription
+from openai.types.chat import ChatCompletion
 
 from app.config import settings
+from app.core.metrics import openrouter_api_errors_total
 
 openrouter: AsyncOpenAI = AsyncOpenAI(
     api_key=settings.openrouter_api_key,
@@ -12,9 +15,7 @@ def get_client() -> AsyncOpenAI:
     return openrouter
 
 
-async def safe_chat_completion(**kwargs: object) -> object:
-    from app.core.metrics import openrouter_api_errors_total
-
+async def safe_chat_completion(**kwargs: object) -> ChatCompletion:
     try:
         return await openrouter.chat.completions.create(**kwargs)  # type: ignore[arg-type]
     except APIError:
@@ -22,9 +23,7 @@ async def safe_chat_completion(**kwargs: object) -> object:
         raise
 
 
-async def safe_audio_transcription(**kwargs: object) -> object:
-    from app.core.metrics import openrouter_api_errors_total
-
+async def safe_audio_transcription(**kwargs: object) -> Transcription:
     try:
         return await openrouter.audio.transcriptions.create(**kwargs)  # type: ignore[arg-type]
     except APIError:
