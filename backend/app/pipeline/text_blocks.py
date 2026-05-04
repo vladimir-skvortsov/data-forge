@@ -4,6 +4,7 @@ from pathlib import Path
 
 import nltk
 import spacy
+from pydub import AudioSegment
 
 from app.config import settings
 from app.core.openrouter import safe_audio_transcription, safe_chat_completion
@@ -62,9 +63,76 @@ def _extract_docx(file_path: str) -> str:
 
 async def _transcribe_audio(file_path: str, params: dict) -> str:
     model = str(params.get('model', settings.openrouter_stt_model))
-    with Path(file_path).open('rb') as audio_file:
-        transcript = await safe_audio_transcription(model=model, file=audio_file)
-    return transcript.text  # type: ignore[union-attr]
+    path = Path(file_path)
+
+    compressed = _compress_for_whisper(path)
+
+    file_size = compressed.stat().st_size
+    max_bytes = 24 * 1024 * 1024  # 24 MB safety margin
+
+    if file_size <= max_bytes:
+        text = await _transcribe_chunk(compressed, model)
+    else:
+        text = await _transcribe_chunked(compressed, model, max_bytes)
+
+    if compressed != path:
+        compressed.unlink(missing_ok=True)
+
+    return text
+
+
+def _compress_for_whisper(path: Path) -> Path:
+    """Re-encode audio to mono 32 kbps MP3 to minimise upload size."""
+
+    out = path.with_suffix('._whisper.mp3')
+    if out.exists():
+        return out
+    audio = AudioSegment.from_file(str(path))
+    audio = audio.set_channels(1).set_frame_rate(16000)
+    audio.export(str(out), format='mp3', bitrate='32k')
+    return out
+
+
+async def _transcribe_chunk(path: Path, model: str) -> str:
+    data = path.read_bytes()
+    transcript = await safe_audio_transcription(
+        model=model,
+        file=(path.name, data, 'audio/mpeg'),
+    )
+    return transcript.text  # type: ignore[attr-defined]
+
+
+async def _transcribe_chunked(path: Path, model: str, max_bytes: int) -> str:
+    audio = AudioSegment.from_file(str(path))
+    # Estimate how many bytes per millisecond so we can size the chunks
+    total_ms = len(audio)
+    total_bytes = path.stat().st_size
+    bytes_per_ms = total_bytes / total_ms if total_ms else 1
+
+    chunk_ms = int(max_bytes / bytes_per_ms)
+    parts: list[str] = []
+    chunk_dir = path.parent / '__chunks__'
+    chunk_dir.mkdir(exist_ok=True)
+
+    try:
+        start = 0
+        idx = 0
+        while start < total_ms:
+            end = min(start + chunk_ms, total_ms)
+            chunk = audio[start:end]
+            chunk_path = chunk_dir / f'chunk_{idx}.mp3'
+            chunk.export(str(chunk_path), format='mp3', bitrate='32k')
+            parts.append(await _transcribe_chunk(chunk_path, model))
+            chunk_path.unlink(missing_ok=True)
+            start = end
+            idx += 1
+    finally:
+        try:
+            chunk_dir.rmdir()
+        except OSError:
+            pass
+
+    return ' '.join(parts)
 
 
 async def _describe_image(file_path: str, params: dict) -> str:
@@ -74,8 +142,8 @@ async def _describe_image(file_path: str, params: dict) -> str:
         f'image/{ext}' if ext in ('png', 'jpg', 'jpeg', 'webp', 'gif') else 'image/png'
     )
 
-    with Path(file_path).open('rb') as f:
-        b64 = base64.b64encode(f.read()).decode('utf-8')
+    raw = Path(file_path).read_bytes()
+    b64 = base64.b64encode(raw).decode('utf-8')
 
     response = await safe_chat_completion(
         model=model,
@@ -95,7 +163,7 @@ async def _describe_image(file_path: str, params: dict) -> str:
             }
         ],
     )
-    return response.choices[0].message.content or ''  # type: ignore[union-attr]
+    return response.choices[0].message.content or ''  # type: ignore[union-attr,attr-defined]
 
 
 async def translate(file_path: str, params: dict) -> str:
@@ -115,7 +183,7 @@ async def translate(file_path: str, params: dict) -> str:
             }
         ],
     )
-    translated = response.choices[0].message.content or ''  # type: ignore[union-attr]
+    translated = response.choices[0].message.content or ''  # type: ignore[union-attr,attr-defined]
     Path(file_path).write_text(translated, encoding='utf-8')
     return file_path
 
