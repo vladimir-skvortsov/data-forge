@@ -13,7 +13,7 @@ RUN useradd -m -u 1000 app
 WORKDIR /app
 
 # Install dependencies (cached layer — only re-runs on pyproject.toml changes)
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Download spaCy language models (EN + RU)
