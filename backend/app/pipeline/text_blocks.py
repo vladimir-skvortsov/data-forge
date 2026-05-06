@@ -6,7 +6,9 @@ from pathlib import Path
 import httpx
 import nltk
 import spacy
+from docx import Document
 from pydub import AudioSegment
+from pypdf import PdfReader
 
 from app.config import settings
 from app.core.openrouter import safe_chat_completion
@@ -34,6 +36,7 @@ async def extract_text(
 
     txt_path = str(Path(file_path).with_suffix('.txt'))
 
+    # TODO: consider strategy for extracting text from different file types
     if ext == '.pdf':
         text = _extract_pdf(file_path)
     elif ext in ('.docx', '.doc'):
@@ -53,15 +56,11 @@ async def extract_text(
 
 
 def _extract_pdf(file_path: str) -> str:
-    from pypdf import PdfReader
-
     reader = PdfReader(file_path)
     return '\n'.join(page.extract_text() or '' for page in reader.pages)
 
 
 def _extract_docx(file_path: str) -> str:
-    from docx import Document
-
     doc = Document(file_path)
     return '\n'.join(p.text for p in doc.paragraphs if p.text)
 
