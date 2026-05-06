@@ -1,5 +1,8 @@
 import json
 
+import numpy as np
+from sklearn.ensemble import IsolationForest
+
 
 def deduplicate(results: list[dict]) -> list[dict]:
     seen: set[str] = set()
@@ -13,9 +16,6 @@ def deduplicate(results: list[dict]) -> list[dict]:
 
 
 def remove_outliers(results: list[dict]) -> list[dict]:
-    import numpy as np
-    from sklearn.ensemble import IsolationForest
-
     structured = [r.get('structured') or {} for r in results]
     if len(structured) < 3:  # not enough samples for IsolationForest
         return results
