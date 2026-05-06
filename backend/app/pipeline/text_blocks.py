@@ -99,24 +99,23 @@ def _compress_for_whisper(path: Path) -> Path:
 
 async def _transcribe_chunk(path: Path, model: str) -> str:
     data = path.read_bytes()
-    logger.info(
-        'Whisper request: model=%s file_size=%d bytes path=%s',
-        model,
-        len(data),
-        path.name,
-    )
+    b64 = base64.b64encode(data).decode()
     async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(
             f'{settings.openrouter_base_url}/audio/transcriptions',
-            headers={'Authorization': f'Bearer {settings.openrouter_api_key}'},
-            files={'file': ('audio.mp3', data, 'audio/mpeg')},
-            data={'model': model},
+            headers={
+                'Authorization': f'Bearer {settings.openrouter_api_key}',
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://dataforge.app',
+                'X-Title': 'DataForge',
+            },
+            json={
+                'model': model,
+                'input_audio': {'data': b64, 'format': 'mp3'},
+            },
         )
         if not response.is_success:
-            logger.error(
-                'Whisper 400 response body: %s',
-                response.text,
-            )
+            logger.error('Whisper error %s: %s', response.status_code, response.text)
         response.raise_for_status()
     return str(response.json().get('text', ''))
 
