@@ -1,4 +1,5 @@
 import base64
+import logging
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from pydub import AudioSegment
 from app.config import settings
 from app.core.openrouter import safe_chat_completion
 from app.db.enums import FileType
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=4)
@@ -96,6 +99,12 @@ def _compress_for_whisper(path: Path) -> Path:
 
 async def _transcribe_chunk(path: Path, model: str) -> str:
     data = path.read_bytes()
+    logger.info(
+        'Whisper request: model=%s file_size=%d bytes path=%s',
+        model,
+        len(data),
+        path.name,
+    )
     async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(
             f'{settings.openrouter_base_url}/audio/transcriptions',
@@ -103,6 +112,11 @@ async def _transcribe_chunk(path: Path, model: str) -> str:
             files={'file': ('audio.mp3', data, 'audio/mpeg')},
             data={'model': model},
         )
+        if not response.is_success:
+            logger.error(
+                'Whisper 400 response body: %s',
+                response.text,
+            )
         response.raise_for_status()
     return str(response.json().get('text', ''))
 
