@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=4)
 def _spacy_model(lang: str) -> spacy.Language:
+    # TODO: support more languages
     model_name = 'ru_core_news_sm' if lang == 'ru' else 'en_core_web_sm'
     return spacy.load(model_name)
 
