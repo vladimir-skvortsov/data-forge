@@ -7,6 +7,8 @@ import httpx
 import nltk
 import spacy
 from docx import Document
+from nltk.corpus import stopwords as sw
+from nltk.tokenize import word_tokenize
 from pydub import AudioSegment
 from pypdf import PdfReader
 
@@ -219,9 +221,6 @@ def lemmatize(file_path: str, params: dict) -> str:
 def remove_stopwords(file_path: str, params: dict) -> str:
     nltk.download('stopwords', quiet=True)
     nltk.download('punkt_tab', quiet=True)
-
-    from nltk.corpus import stopwords as sw
-    from nltk.tokenize import word_tokenize
 
     lang = str(params.get('lang', 'en'))
     nltk_lang = 'russian' if lang == 'ru' else 'english'
