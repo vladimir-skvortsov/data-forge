@@ -166,7 +166,6 @@ async def _process_job(job: Job, job_id: str, db: AsyncSession) -> None:
     job.completed_at = datetime.now(UTC)
 
     metrics.jobs_total.labels(status='completed').inc()
-    metrics.credits_charged_total.inc(float(actual_charge))
 
 
 async def _handle_failure(job: Job, job_id: str, db: AsyncSession) -> None:

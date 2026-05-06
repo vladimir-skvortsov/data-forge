@@ -12,9 +12,9 @@ files_processed_total = Counter(
     ['file_type', 'status'],
 )
 
-credits_charged_total = Counter(
+credits_charged_total = Gauge(
     'dataforge_credits_charged_total',
-    'Total credits charged across all completed jobs',
+    'Total credits charged across all completed jobs (synced from DB)',
 )
 
 openrouter_api_errors_total = Counter(
