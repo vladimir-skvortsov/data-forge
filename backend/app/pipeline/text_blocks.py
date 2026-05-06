@@ -97,7 +97,7 @@ async def _transcribe_chunk(path: Path, model: str) -> str:
     data = path.read_bytes()
     transcript = await safe_audio_transcription(
         model=model,
-        file=(path.name, data, 'audio/mpeg'),
+        file=('audio.mp3', data, 'audio/mpeg'),
     )
     return transcript.text  # type: ignore[attr-defined]
 
