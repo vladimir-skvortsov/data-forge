@@ -2,12 +2,13 @@ import base64
 from functools import lru_cache
 from pathlib import Path
 
+import httpx
 import nltk
 import spacy
 from pydub import AudioSegment
 
 from app.config import settings
-from app.core.openrouter import safe_audio_transcription, safe_chat_completion
+from app.core.openrouter import safe_chat_completion
 from app.db.enums import FileType
 
 
@@ -95,11 +96,15 @@ def _compress_for_whisper(path: Path) -> Path:
 
 async def _transcribe_chunk(path: Path, model: str) -> str:
     data = path.read_bytes()
-    transcript = await safe_audio_transcription(
-        model=model,
-        file=('audio.mp3', data, 'audio/mpeg'),
-    )
-    return transcript.text  # type: ignore[attr-defined]
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            f'{settings.openrouter_base_url}/audio/transcriptions',
+            headers={'Authorization': f'Bearer {settings.openrouter_api_key}'},
+            files={'file': ('audio.mp3', data, 'audio/mpeg')},
+            data={'model': model},
+        )
+        response.raise_for_status()
+    return str(response.json().get('text', ''))
 
 
 async def _transcribe_chunked(path: Path, model: str, max_bytes: int) -> str:
