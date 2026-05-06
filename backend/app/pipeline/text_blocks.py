@@ -223,6 +223,7 @@ def remove_stopwords(file_path: str, params: dict) -> str:
     nltk.download('punkt_tab', quiet=True)
 
     lang = str(params.get('lang', 'en'))
+    # TODO: support more languages
     nltk_lang = 'russian' if lang == 'ru' else 'english'
     stop_words = set(sw.words(nltk_lang))
 
