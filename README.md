@@ -4,6 +4,15 @@ Scalable ML service for automatic structuring of unstructured data based on user
 
 Users upload files (text, images, audio), define a JSON schema describing the target structure, assemble a processing pipeline from ready-made blocks, and receive a structured dataset (JSON / YAML / CSV / Parquet).
 
+## Live demo
+
+| Service  | URL                                                                                                  |
+|----------|------------------------------------------------------------------------------------------------------|
+| Frontend | [dataforge.vladimirskvortsov.com](https://dataforge.vladimirskvortsov.com)                           |
+| API Docs | [dataforge-api.vladimirskvortsov.com/api/docs](https://dataforge-api.vladimirskvortsov.com/api/docs) |
+| Grafana  | [dataforge-grafana.vladimirskvortsov.com](https://dataforge-grafana.vladimirskvortsov.com)           |
+| Flower   | [dataforge-flower.vladimirskvortsov.com](https://dataforge-flower.vladimirskvortsov.com)             |
+
 ## Quick start
 
 ```bash
