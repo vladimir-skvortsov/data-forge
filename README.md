@@ -2,7 +2,7 @@
 
 Scalable ML service for automatic structuring of unstructured data based on user-defined schemas and configurable processing pipelines.
 
-Users upload files (text, images, audio), define a JSON schema describing the target structure, assemble a processing pipeline from ready-made blocks, and receive a structured dataset (JSON / YAML / CSV / Parquet).
+Users upload files (text, images, audio), define a JSON schema describing the target structure, assemble a processing pipeline from ready-made blocks, and receive a structured dataset (JSON/YAML/CSV/Parquet).
 
 ## Live demo
 
